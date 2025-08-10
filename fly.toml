@@ -1,12 +1,22 @@
-app = "mrwinrock-api"
-primary_region = "sin"
+# fly.toml app configuration file generated for mrwinrock-api on 2025-08-10T15:12:10+07:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'mrwinrock-api'
+primary_region = 'sin'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
 [http_service]
   internal_port = 8080
   force_https = true
+  auto_stop_machines = 'off'
   auto_start_machines = true
-  auto_stop_machines = "off"
   min_machines_running = 1
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
