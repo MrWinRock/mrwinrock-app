@@ -20,13 +20,17 @@ for (const file of envFiles) {
 }
 
 const EnvSchema = z.object({
-    MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
-    PORT: z.coerce.number().default(5000),
+    MONGODB_URI: z.string().min(1),
+    PORT: z.coerce.number().default(8080),
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     RESEND_API_KEY: z.string().optional(),
     CONTACT_TO: z.string().optional(),
     CONTACT_FROM: z.string().default('Portfolio <onboarding@resend.dev>'),
     API_KEY: z.string().optional(),
-});
+    ADMIN_ORIGIN: z.string().url(),
+    CF_ACCESS_TEAM_DOMAIN: z.string().min(1),
+    CF_ACCESS_AUD: z.string().min(1),
+})
+
 
 export const env = EnvSchema.parse(process.env);

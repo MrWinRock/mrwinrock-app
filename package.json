@@ -3,8 +3,8 @@
   "module": "src/server.ts",
   "type": "module",
   "scripts": {
-    "dev": "bun --hot run src/server.ts",
-    "start": "bun run src/server.ts",
+    "dev": "bun --watch index.ts",
+    "start": "bun run index.ts",
     "typecheck": "bunx tsc --noEmit"
   },
   "devDependencies": {
@@ -13,6 +13,7 @@
   "dependencies": {
     "dotenv": "^17.2.1",
     "hono": "^4.9.0",
+    "jose": "^6.0.12",
     "mongodb": "^6.18.0",
     "zod": "^4.0.15"
   },
