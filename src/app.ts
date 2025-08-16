@@ -11,7 +11,8 @@ const app = new Hono()
 const PUBLIC_ORIGINS = [
   'http://localhost:5173',
   'https://mrwinrock.com',
-  'https://www.mrwinrock.com'
+  'https://www.mrwinrock.com',
+  'https://admin.mrwinrock.com'
 ];
 
 app.use('/*', cors({
