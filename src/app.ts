@@ -58,7 +58,18 @@ app.get('/health', async c => {
     const db = await connectMongo();
     await db.command({ ping: 1 });
     const uptime = typeof process !== 'undefined' && process.uptime ? process.uptime() : null;
-    return c.json({ ok: true, status: 'live', uptime, timestamp: new Date().toISOString() });
+    return c.json({ ok: true, status: 'live', method: "GET", uptime, timestamp: new Date().toISOString() });
+  } catch (e) {
+    return c.json({ ok: false, error: (e as Error).message }, 500);
+  }
+});
+
+app.post('/health', async c => {
+  try {
+    const db = await connectMongo();
+    await db.command({ ping: 1 });
+    const uptime = typeof process !== 'undefined' && process.uptime ? process.uptime() : null;
+    return c.json({ ok: true, status: 'live', method: "POST", uptime, timestamp: new Date().toISOString() });
   } catch (e) {
     return c.json({ ok: false, error: (e as Error).message }, 500);
   }
