@@ -20,13 +20,15 @@ const PUBLIC_ORIGINS = [
   'https://admin.mrwinrock.com',
 ];
 
+const ALLOW = new Set(PUBLIC_ORIGINS);
+
 app.use('/*', cors({
   origin: (origin) => {
     if (!origin) return '*';
-    return PUBLIC_ORIGINS.includes(origin) ? origin : PUBLIC_ORIGINS[1];
+    return ALLOW.has(origin) ? origin : '';
   },
   credentials: false,
-  allowMethods: ['GET', 'OPTIONS'],
+  allowMethods: ['GET', 'POST', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
   maxAge: 86400
 }));
