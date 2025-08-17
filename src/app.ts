@@ -1,4 +1,3 @@
-// app.ts
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { connectMongo } from './db/mongo'
@@ -9,10 +8,16 @@ import { env } from './config/env'
 const app = new Hono()
 
 const PUBLIC_ORIGINS = [
+  // Development
   'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  // Staging
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+  // Production
   'https://mrwinrock.com',
   'https://www.mrwinrock.com',
-  'https://admin.mrwinrock.com'
+  'https://admin.mrwinrock.com',
 ];
 
 app.use('/*', cors({
