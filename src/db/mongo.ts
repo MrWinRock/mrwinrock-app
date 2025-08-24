@@ -1,5 +1,6 @@
 import { Db, MongoClient } from 'mongodb';
 import { env } from '../config/env';
+import type { Document } from 'mongodb';
 
 let client: MongoClient | undefined;
 let db: Db | undefined;
@@ -16,8 +17,6 @@ export function getDb(): Db {
     if (!db) throw new Error('MongoDB not connected. Call connectMongo() at startup.');
     return db;
 }
-
-import type { Document } from 'mongodb';
 
 export function getCollection<T extends Document = Document>(name: string) {
     return getDb().collection<T>(name);

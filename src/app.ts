@@ -4,6 +4,7 @@ import { connectMongo } from './db/mongo'
 import routes from './routes'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { env } from './config/env'
+import { requireApiKey } from './middleware/apiKey'
 
 const app = new Hono()
 
@@ -33,6 +34,18 @@ app.use('/*', cors({
   maxAge: 86400
 }));
 
+app.use('/api/*', async (c, next) => {
+  const start = Date.now()
+  const method = c.req.method
+  const url = c.req.url
+  const path = (() => {
+    try { return new URL(url).pathname } catch { return url }
+  })()
+  await next()
+  const ms = Date.now() - start
+  console.log(`[API] ${method} ${path} -> ${c.res.status} ${ms}ms`)
+})
+
 app.use('/admin/*', cors({
   origin: env.ADMIN_ORIGIN,
   credentials: true,
@@ -58,6 +71,8 @@ const requireAccess = async (c: any, next: any) => {
 };
 
 app.use('/admin/*', requireAccess);
+
+app.use('/api/*', requireApiKey())
 
 app.get('/', c => c.json({ ok: true, message: 'Welcome to MrWinRock API' }));
 

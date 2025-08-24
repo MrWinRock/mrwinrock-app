@@ -1,29 +1,67 @@
-import { env } from '../../config/env';
+import { env } from '../../config/env'
+import { Resend } from 'resend'
 
-export async function sendContactEmail({ name, email, message }: { name: string; email: string; message: string }) {
+export type SendContactEmailResult =
+    | { ok: true; skipped?: true; message?: string }
+    | { ok: false; error: string }
+
+export async function sendContactEmail({
+    name,
+    email,
+    message,
+}: {
+    name: string
+    email: string
+    message: string
+}): Promise<SendContactEmailResult> {
     if (!env.RESEND_API_KEY || !env.CONTACT_TO) {
-
-        return { ok: true, skipped: true };
+        return { ok: true, skipped: true, message: 'email send skipped (missing config)' }
     }
 
-    const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${env.RESEND_API_KEY}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            from: env.CONTACT_FROM,
+    const resend = new Resend(env.RESEND_API_KEY)
+
+    try {
+        const bodyLines = [
+            'New contact submission',
+            `Name: ${name.trim()}`,
+            `Email: ${email.trim()}`,
+            '',
+            'Message:',
+            message.trim(),
+            '',
+            `Received: ${new Date().toISOString()}`
+        ]
+        const body = bodyLines.join('\n')
+        const from = env.CONTACT_FROM
+        const replyTo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : undefined
+
+        const { data, error } = await resend.emails.send({
+            from,
             to: [env.CONTACT_TO],
-            subject: `New contact from ${name}`,
-            reply_to: email,
-            text: message,
-        }),
-    });
+            subject: (name && name.trim()) || 'Contact',
+            text: body,
+            replyTo,
+        })
 
-    if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Failed to send email: ${res.status} ${text}`);
+        if (error) {
+            if (env.NODE_ENV === 'development') {
+
+                console.error('Resend send error raw:', error)
+            }
+            const errMsg =
+                (error as any).message ||
+                (error as any).error ||
+                (error as any).name ||
+                JSON.stringify(error)
+            return { ok: false, error: `Resend error: ${errMsg}` }
+        }
+
+        if (!data) {
+            return { ok: false, error: 'Resend error: no data returned' }
+        }
+
+        return { ok: true, message: 'Email sent successfully' }
+    } catch (e) {
+        return { ok: false, error: (e as Error).message }
     }
-    return { ok: true } as const;
 }
