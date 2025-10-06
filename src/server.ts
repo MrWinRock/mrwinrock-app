@@ -1,7 +1,7 @@
 import app from './app.ts';
 import { connectMongo } from './db/mongo.ts';
 
-const port = Number(process.env.PORT || 5000);
+const port = Number(process.env.PORT || 8080);
 
 await connectMongo().catch((e) => {
   console.error('Failed to connect to MongoDB:', e);
@@ -9,9 +9,10 @@ await connectMongo().catch((e) => {
 });
 
 const server = Bun.serve({
+  hostname: "0.0.0.0",
   port,
   fetch: app.fetch,
 });
 
-console.log(`Server listening at http://localhost:${server.port}`);
+console.log(`Server listening on port ${server.port}`);
 
