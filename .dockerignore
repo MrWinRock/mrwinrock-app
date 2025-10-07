@@ -46,3 +46,5 @@
 # Finder (MacOS) folder config
 **\.DS_Store
 fly.toml
+
+\docs
