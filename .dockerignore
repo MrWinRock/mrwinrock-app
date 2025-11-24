@@ -1,50 +1,49 @@
-# flyctl launch added from .gitignore
 # dependencies
-**\node_modules
+**/node_modules
 
 # output
-**\out
-**\dist
-**\*.tgz
+**/out
+**/dist
+**/*.tgz
 
 # code coverage
-**\coverage
-**\*.lcov
+**/coverage
+**/*.lcov
 
 # logs
-**\logs
-**\*.log
-**\npm-debug.log*
-**\yarn-debug.log*
-**\yarn-error.log*
-**\pnpm-debug.log*
-**\bun-debug.log*
+**/logs
+**/*.log
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+**/bun-debug.log*
 
 # dotenv environment variable files
-**\.env
-**\.env.*.local
-**\.env.local
-**\.env.development
-**\.env.test
-**\.env.production
-!**\.env.example
+**/.env
+**/.env.*.local
+**/.env.local
+**/.env.development
+**/.env.test
+**/.env.production
+!**/.env.example
 
 # OS junk (Windows/macOS)
-**\Thumbs.db
-**\desktop.ini
-**\.DS_Store
+**/Thumbs.db
+**/desktop.ini
+**/.DS_Store
 
 # caches
-**\.eslintcache
-**\.cache
-**\*.tsbuildinfo
+**/.eslintcache
+**/.cache
+**/*.tsbuildinfo
 
 # IntelliJ based IDEs
-**\.idea
-**\.vscode
+**/.idea
+**/.vscode
 
 # Finder (MacOS) folder config
-**\.DS_Store
+**/.DS_Store
 fly.toml
 
-\docs
+docs
