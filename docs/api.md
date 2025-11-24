@@ -171,8 +171,8 @@ Skill object:
 
 Auth:
 
-- /api/skills: GET requires x-api-key; POST requires x-api-key
-- /admin/skills: GET requires Cf-Access-Jwt-Assertion; POST requires Cf-Access-Jwt-Assertion + x-api-key
+- /api/skills: all methods require x-api-key
+- /admin/skills: GET requires Cf-Access-Jwt-Assertion; POST/PUT/DELETE require Cf-Access-Jwt-Assertion + x-api-key
 
 ### GET /{base}/skills
 
@@ -210,6 +210,47 @@ Validation error 400:
 ```json
 { "ok": false, "error": ZodFlattenedError }
 ```
+
+### PUT /{base}/skills/:id
+
+Update a skill by id (24-char hex).
+
+Path param:
+
+- id: string (24 hex chars)
+
+Request body (SkillSchema): same shape as POST.
+
+Success 200:
+
+```json
+{ "ok": true, "data": Skill & { "_id": string } }
+```
+
+Errors:
+
+- 400: `{ "ok": false, "error": "Invalid id" }`
+- 400: `{ "ok": false, "error": ZodFlattenedError }`
+- 404: `{ "ok": false, "error": "Skill not found" }`
+
+### DELETE /{base}/skills/:id
+
+Delete a skill by id.
+
+Path param:
+
+- id: string (24 hex chars)
+
+Success 200:
+
+```json
+{ "ok": true }
+```
+
+Errors:
+
+- 400: `{ "ok": false, "error": "Invalid id" }`
+- 404: `{ "ok": false, "error": "Skill not found" }`
 
 ---
 
