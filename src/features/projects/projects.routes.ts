@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { ProjectSchema } from './projects.schema';
 import { requireApiKey } from '../../middleware/apiKey.ts';
-import { createProject, listProjects, updateProject } from './projects.repo';
+import { createProject, listProjects, updateProject, deleteProject } from './projects.repo';
 
 const projects = new Hono();
 
@@ -28,6 +28,15 @@ projects.put('/:id', requireApiKey(), async (c) => {
     if (!parsed.success) return c.json({ ok: false, error: parsed.error.flatten() }, 400);
     const updated = await updateProject({ _id: id, ...parsed.data });
     return c.json({ ok: true, data: updated }, 200);
+});
+
+projects.delete('/:id', requireApiKey(), async (c) => {
+    const id = c.req.param('id');
+    if (!id || id.length !== 24) {
+        return c.json({ ok: false, error: 'Invalid id' }, 400);
+    }
+    await deleteProject(id);
+    return c.json({ ok: true }, 200);
 });
 
 export default projects;

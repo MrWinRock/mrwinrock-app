@@ -39,10 +39,13 @@ Envelope:
 Returns a simple welcome.
 
 Response 200:
+
+```json
 {
   "ok": true,
   "message": "Welcome to MrWinRock API"
 }
+```
 
 Source: [src/app.ts](src/app.ts)
 
@@ -51,6 +54,8 @@ Source: [src/app.ts](src/app.ts)
 Pings MongoDB and reports liveness.
 
 Response 200:
+
+```json
 {
   "ok": true,
   "status": "live",
@@ -58,9 +63,13 @@ Response 200:
   "uptime": number | null,
   "timestamp": string
 }
+```
 
 Error 500:
+
+```json
 { "ok": false, "error": string }
+```
 
 Source: [src/app.ts](src/app.ts)
 
@@ -69,6 +78,8 @@ Source: [src/app.ts](src/app.ts)
 Same as GET /health but with method: "POST".
 
 Response 200:
+
+```json
 {
   "ok": true,
   "status": "live",
@@ -76,18 +87,25 @@ Response 200:
   "uptime": number | null,
   "timestamp": string
 }
+```
 
 Error 500:
+
+```json
 { "ok": false, "error": string }
+```
 
 Source: [src/app.ts](src/app.ts)
 
 ### GET /fish
 
-Health check easter egg.
+Fish.
 
 Response 200:
+
+```json
 { "fish": "<><" }
+```
 
 Source: [src/app.ts](src/app.ts)
 
@@ -105,22 +123,31 @@ Router: [src/routes/health.routes.ts](src/routes/health.routes.ts)
 ### GET /{base}/health/
 
 Response 200:
+
+```json
 {
   "ok": true,
   "status": "live",
   "uptime": number,
   "timestamp": string
 }
+```
 
 ### GET /{base}/health/ready
 
 Checks MongoDB readiness.
 
 Response 200:
+
+```json
 { "ok": true, "status": "ready" }
+```
 
 Error 503:
+
+```json
 { "ok": false, "status": "not-ready", "error": string }
+```
 
 ---
 
@@ -131,6 +158,8 @@ Routes: [src/features/skills/skills.routes.ts](src/features/skills/skills.routes
 Schema: [`SkillSchema`](src/features/skills/skills.schema.ts)
 
 Skill object:
+
+```json
 {
   "name": string,
   "category"?: string,
@@ -138,6 +167,7 @@ Skill object:
   "order": number,
   "_id"?: string
 }
+```
 
 Auth:
 
@@ -149,25 +179,37 @@ Auth:
 List all skills ordered by order, name.
 
 Response 200:
+
+```json
 { "ok": true, "data": Skill[] }
+```
 
 ### POST /{base}/skills
 
 Create a skill.
 
 Request body (validated by SkillSchema):
+
+```json
 {
   "name": string,
   "category"?: string,
   "icon"?: string (url),
   "order"?: number (default 0)
 }
+```
 
 Success 201:
+
+```json
 { "ok": true, "data": Skill & { "_id": string } }
+```
 
 Validation error 400:
+
+```json
 { "ok": false, "error": ZodFlattenedError }
+```
 
 ---
 
@@ -178,6 +220,8 @@ Routes: [src/features/projects/projects.routes.ts](src/features/projects/project
 Schema: [`ProjectSchema`](src/features/projects/projects.schema.ts)
 
 Project object:
+
+```json
 {
   "title": string,
   "description": string,
@@ -188,24 +232,30 @@ Project object:
   "order": number,
   "_id"?: string
 }
+```
 
 Auth:
 
 - /api/projects: all methods require x-api-key
-- /admin/projects: GET requires Cf-Access-Jwt-Assertion; POST/PUT require Cf-Access-Jwt-Assertion + x-api-key
+- /admin/projects: GET requires Cf-Access-Jwt-Assertion; POST/PUT/DELETE require Cf-Access-Jwt-Assertion + x-api-key
 
 ### GET /{base}/projects
 
 List all projects ordered by order, title.
 
 Response 200:
+
+```json
 { "ok": true, "data": Project[] }
+```
 
 ### POST /{base}/projects
 
 Create a project.
 
 Request body (ProjectSchema):
+
+```json
 {
   "title": string,
   "description": string,
@@ -215,12 +265,19 @@ Request body (ProjectSchema):
   "featured"?: boolean (default false),
   "order"?: number (default 0)
 }
+```
 
 Success 201:
+
+```json
 { "ok": true, "data": Project & { "_id": string } }
+```
 
 Validation error 400:
+
+```json
 { "ok": false, "error": ZodFlattenedError }
+```
 
 ### PUT /{base}/projects/:id
 
@@ -233,12 +290,33 @@ Path param:
 Request body (ProjectSchema): same shape as POST.
 
 Success 200:
+
+```json
 { "ok": true, "data": Project & { "_id": string } }
+```
 
 Errors:
 
-- 400: { "ok": false, "error": "Invalid id" } (when id invalid)
-- 400: { "ok": false, "error": ZodFlattenedError } (validation)
+- 400: `{ "ok": false, "error": "Invalid id" }` (when id invalid)
+- 400: `{ "ok": false, "error": ZodFlattenedError }` (validation)
+
+### DELETE /{base}/projects/:id
+
+Delete a project by id.
+
+Path param:
+
+- id: string (24 hex chars)
+
+Success 200:
+
+```json
+{ "ok": true }
+```
+
+Errors:
+
+- 400: `{ "ok": false, "error": "Invalid id" }`
 
 ---
 
@@ -249,6 +327,8 @@ Routes: [src/features/experience/experience.routes.ts](src/features/experience/e
 Schema: [`ExperienceSchema`](src/features/experience/experience.schema.ts)
 
 Experience object:
+
+```json
 {
   "company": string,
   "role": string,
@@ -260,6 +340,7 @@ Experience object:
   "order": number,
   "_id"?: string
 }
+```
 
 Auth:
 
@@ -271,13 +352,18 @@ Auth:
 List all experience entries ordered by order asc, startDate desc.
 
 Response 200:
+
+```json
 { "ok": true, "data": Experience[] }
+```
 
 ### POST /{base}/experience
 
 Create an experience entry.
 
 Request body (ExperienceSchema):
+
+```json
 {
   "company": string,
   "role": string,
@@ -288,12 +374,19 @@ Request body (ExperienceSchema):
   "tech"?: string[] (default []),
   "order"?: number (default 0)
 }
+```
 
 Success 201:
+
+```json
 { "ok": true, "data": Experience & { "_id": string } }
+```
 
 Validation error 400:
+
+```json
 { "ok": false, "error": ZodFlattenedError }
+```
 
 ---
 
@@ -314,23 +407,29 @@ Auth:
 Send a contact email via Resend.
 
 Request body (ContactSchema):
+
+```json
 {
   "name": string,
   "email": string (email),
   "message": string (min 10, max 5000)
 }
+```
 
 Success 200:
+
+```json
 {
   "ok": true,
   "message": string,         // "Email sent" or similar
   "skipped"?: true           // present if email sending skipped by config
 }
+```
 
 Errors:
 
-- 400: { "ok": false, "error": ZodFlattenedError }
-- 500: { "ok": false, "error": string } // e.g., Resend error
+- 400: `{ "ok": false, "error": ZodFlattenedError }`
+- 500: `{ "ok": false, "error": string }` // e.g., Resend error
 
 Notes:
 

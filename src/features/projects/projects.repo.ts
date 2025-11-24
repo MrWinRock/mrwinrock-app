@@ -18,3 +18,7 @@ export async function updateProject(doc: ProjectInput & { _id: string }) {
     await collection().updateOne({ _id: new ObjectId(_id) }, { $set: rest });
     return { ...doc };
 }
+
+export async function deleteProject(id: string) {
+    await collection().deleteOne({ _id: new ObjectId(id) });
+}
