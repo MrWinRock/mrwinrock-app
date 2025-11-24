@@ -29,8 +29,8 @@ app.use('/*', cors({
     return ALLOW.has(origin) ? origin : '';
   },
   credentials: false,
-  allowMethods: ['GET', 'POST', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
+  allowMethods: ['GET', 'POST', 'PUT', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
   maxAge: 86400
 }));
 
@@ -50,7 +50,7 @@ app.use('/admin/*', cors({
   origin: env.ADMIN_ORIGIN,
   credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'Cf-Access-Jwt-Assertion'],
+  allowHeaders: ['Content-Type', 'Authorization', 'Cf-Access-Jwt-Assertion', 'x-api-key'],
   maxAge: 86400
 }));
 
