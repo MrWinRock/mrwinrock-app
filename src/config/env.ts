@@ -21,6 +21,8 @@ for (const file of envFiles) {
 
 const EnvSchema = z.object({
     MONGODB_URI: z.string().min(1),
+    MONGODB_DB_NAME: z.string().default('mrwinrockdb'),
+    MONGODB_DB_LOGIC: z.string().default('logic'),
     PORT: z.coerce.number().default(8080),
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     RESEND_API_KEY: z.string().optional(),
