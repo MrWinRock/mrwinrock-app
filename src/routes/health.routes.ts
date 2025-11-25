@@ -16,9 +16,9 @@ health.get('/ready', async (c) => {
     try {
         const db = await connectMongo();
         await db.command({ ping: 1 });
-        return c.json({ ok: true, status: 'ready' });
+        return c.json({ ok: true, status: 'live' });
     } catch (e) {
-        return c.json({ ok: false, status: 'not-ready', error: (e as Error).message }, 503);
+        return c.json({ ok: false, error: (e as Error).message }, 503);
     }
 });
 
