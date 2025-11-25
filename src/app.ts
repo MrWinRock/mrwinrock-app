@@ -29,7 +29,7 @@ app.use('/*', cors({
     return ALLOW.has(origin) ? origin : '';
   },
   credentials: false,
-  allowMethods: ['GET', 'POST', 'PUT', 'OPTIONS'],
+  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
   maxAge: 86400
 }));
