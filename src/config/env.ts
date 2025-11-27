@@ -32,6 +32,10 @@ const EnvSchema = z.object({
     ADMIN_ORIGIN: z.string().url(),
     CF_ACCESS_TEAM_DOMAIN: z.string().min(1),
     CF_ACCESS_AUD: z.string().min(1),
+    GOOGLE_CLOUD_PROJECT_ID: z.string().min(1),
+    GOOGLE_CLOUD_CLIENT_EMAIL: z.string().min(1),
+    GOOGLE_CLOUD_PRIVATE_KEY: z.string().min(1),
+    GOOGLE_CLOUD_BUCKET_NAME: z.string().min(1),
 })
 
 

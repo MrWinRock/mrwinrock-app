@@ -10,8 +10,23 @@ skills.get('/', async (c) => {
     return c.json({ ok: true, data });
 });
 
+import { StorageService } from '../../services/storage';
+
 skills.post('/', requireApiKey(), async (c) => {
-    const body = await c.req.json().catch(() => ({}));
+    let body: any = {};
+    const contentType = c.req.header('content-type');
+
+    if (contentType?.includes('multipart/form-data')) {
+        const formData = await c.req.parseBody();
+        body = { ...formData };
+        if (body.icon instanceof File) {
+            const url = await StorageService.uploadFile(body.icon, 'skills');
+            body.icon = url;
+        }
+    } else {
+        body = await c.req.json().catch(() => ({}));
+    }
+
     const parsed = CreateSkillSchema.safeParse(body);
     if (!parsed.success) return c.json({ ok: false, error: parsed.error.flatten() }, 400);
     const saved = await createSkill(parsed.data);
@@ -23,7 +38,21 @@ skills.put('/:id', requireApiKey(), async (c) => {
     if (!id || id.length !== 24) {
         return c.json({ ok: false, error: 'Invalid id' }, 400);
     }
-    const body = await c.req.json().catch(() => ({}));
+
+    let body: any = {};
+    const contentType = c.req.header('content-type');
+
+    if (contentType?.includes('multipart/form-data')) {
+        const formData = await c.req.parseBody();
+        body = { ...formData };
+        if (body.icon instanceof File) {
+            const url = await StorageService.uploadFile(body.icon, 'skills');
+            body.icon = url;
+        }
+    } else {
+        body = await c.req.json().catch(() => ({}));
+    }
+
     const parsed = SkillSchema.safeParse(body);
     if (!parsed.success) return c.json({ ok: false, error: parsed.error.flatten() }, 400);
     const updated = await updateSkill({ _id: id, ...parsed.data });

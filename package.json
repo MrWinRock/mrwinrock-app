@@ -11,6 +11,7 @@
     "@types/bun": "latest"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.17.3",
     "dotenv": "^17.2.3",
     "hono": "^4.10.6",
     "jose": "^6.1.2",
