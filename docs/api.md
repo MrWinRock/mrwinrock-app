@@ -186,18 +186,19 @@ Response 200:
 
 ### POST /{base}/skills
 
-Create a skill.
+Create a skill. The `order` field is auto-assigned as `max(order) + 1`.
 
-Request body (validated by SkillSchema):
+Request body (validated by CreateSkillSchema):
 
 ```json
 {
   "name": string,
   "category"?: string,
-  "icon"?: string (url),
-  "order"?: number (default 0)
+  "icon"?: string (url)
 }
 ```
+
+Note: The `order` field is NOT accepted in the request body. It will be automatically assigned.
 
 Success 201:
 
@@ -224,8 +225,20 @@ Request body (SkillSchema): same shape as POST.
 Success 200:
 
 ```json
-{ "ok": true, "data": Skill & { "_id": string } }
+{
+  "ok": true,
+  "data": Skill & {
+    "_id": string,
+    "_meta"?: {
+      "orderAdjusted": true,
+      "originalOrder": number,
+      "newOrder": number
+    }
+  }
+}
 ```
+
+The `_meta` field appears only when the specified order was already in use and was automatically incremented to the next available order.
 
 Errors:
 
@@ -252,15 +265,29 @@ Errors:
 - 400: `{ "ok": false, "error": "Invalid id" }`
 - 404: `{ "ok": false, "error": "Skill not found" }`
 
----
+### PATCH /{base}/skills/reorder
 
-## Projects
+Bulk reorder skills. Updates the order field for multiple skills in a single atomic operation.
 
-Base path: /{base}/projects  
-Routes: [src/features/projects/projects.routes.ts](src/features/projects/projects.routes.ts)  
-Schema: [`ProjectSchema`](src/features/projects/projects.schema.ts)
+Request body:
 
-Project object:
+```json
+{
+  "items": [
+    { "id": "507f1f77bcf86cd799439011", "order": 0 },
+    { "id": "507f1f77bcf86cd799439012", "order": 1 },
+    { "id": "507f1f77bcf86cd799439013", "order": 2 }
+  ]
+}
+```
+
+- `items`: array of objects with `id` (24-char hex) and `order` (non-negative integer)
+
+Success 200:
+
+```json
+{ "ok": true, "data": Skill[] }
+```
 
 ```json
 {
@@ -292,9 +319,9 @@ Response 200:
 
 ### POST /{base}/projects
 
-Create a project.
+Create a project. The `order` field is auto-assigned as `max(order) + 1`.
 
-Request body (ProjectSchema):
+Request body (validated by CreateProjectSchema):
 
 ```json
 {
@@ -303,10 +330,11 @@ Request body (ProjectSchema):
   "url"?: string,
   "repo"?: string,
   "tech"?: string[] (default []),
-  "featured"?: boolean (default false),
-  "order"?: number (default 0)
+  "featured"?: boolean (default false)
 }
 ```
+
+Note: The `order` field is NOT accepted in the request body. It will be automatically assigned.
 
 Success 201:
 
@@ -333,8 +361,20 @@ Request body (ProjectSchema): same shape as POST.
 Success 200:
 
 ```json
-{ "ok": true, "data": Project & { "_id": string } }
+{
+  "ok": true,
+  "data": Project & {
+    "_id": string,
+    "_meta"?: {
+      "orderAdjusted": true,
+      "originalOrder": number,
+      "newOrder": number
+    }
+  }
+}
 ```
+
+The `_meta` field appears only when the specified order was already in use and was automatically incremented to the next available order.
 
 Errors:
 
@@ -359,11 +399,35 @@ Errors:
 
 - 400: `{ "ok": false, "error": "Invalid id" }`
 
----
+### PATCH /{base}/projects/reorder
 
-## Experience
+Bulk reorder projects. Updates the order field for multiple projects in a single atomic operation.
 
-Base path: /{base}/experience  
+Request body:
+
+```json
+{
+  "items": [
+    { "id": "507f1f77bcf86cd799439011", "order": 0 },
+    { "id": "507f1f77bcf86cd799439012", "order": 1 },
+    { "id": "507f1f77bcf86cd799439013", "order": 2 }
+  ]
+}
+```
+
+- `items`: array of objects with `id` (24-char hex) and `order` (non-negative integer)
+
+Success 200:
+
+```json
+{ "ok": true, "data": Project[] }
+```
+
+Returns the complete list of projects in the new order.
+
+Errors:
+
+- 400: `{ "ok": false, "error": "Expected { items: Array<{ id, order }> }" }` (invalid structure)
 Routes: [src/features/experience/experience.routes.ts](src/features/experience/experience.routes.ts)  
 Schema: [`ExperienceSchema`](src/features/experience/experience.schema.ts)
 

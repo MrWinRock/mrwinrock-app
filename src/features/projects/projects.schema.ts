@@ -10,4 +10,7 @@ export const ProjectSchema = z.object({
     order: z.number().int().nonnegative().default(0),
 });
 
+export const CreateProjectSchema = ProjectSchema.omit({ order: true });
+
 export type ProjectInput = z.infer<typeof ProjectSchema>;
+export type CreateProjectInput = z.infer<typeof CreateProjectSchema>;

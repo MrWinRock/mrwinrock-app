@@ -1,24 +1,91 @@
 import { getCollection } from '../../db/mongo';
-import type { ProjectInput } from './projects.schema';
+import type { ProjectInput, CreateProjectInput } from './projects.schema';
 import { ObjectId } from 'mongodb';
 
 const collection = () => getCollection<ProjectInput>('projects');
+
+async function checkOrderConflict(order: number, excludeId?: string) {
+    const query: Record<string, unknown> = { order };
+    if (excludeId) {
+        query._id = { $ne: new ObjectId(excludeId) };
+    }
+    return collection().findOne(query);
+}
+
+async function getNextAvailableOrder(preferredOrder: number): Promise<number> {
+    let currentOrder = preferredOrder;
+    while (await checkOrderConflict(currentOrder)) {
+        currentOrder++;
+    }
+    return currentOrder;
+}
+
+async function getMaxOrder(): Promise<number> {
+    const result = await collection()
+        .find({})
+        .sort({ order: -1 })
+        .limit(1)
+        .toArray();
+    return result.length > 0 ? result[0]!.order : -1;
+}
 
 export async function listProjects() {
     return collection().find({}).sort({ order: 1, title: 1 }).toArray();
 }
 
-export async function createProject(doc: ProjectInput) {
-    const res = await collection().insertOne(doc);
-    return { ...doc, _id: res.insertedId };
+export async function createProject(doc: CreateProjectInput) {
+    const maxOrder = await getMaxOrder();
+    const finalDoc = { ...doc, order: maxOrder + 1 };
+    const res = await collection().insertOne(finalDoc);
+
+    return {
+        ...finalDoc,
+        _id: res.insertedId,
+    };
 }
 
 export async function updateProject(doc: ProjectInput & { _id: string }) {
     const { _id, ...rest } = doc;
-    await collection().updateOne({ _id: new ObjectId(_id) }, { $set: rest });
-    return { ...doc };
+
+    const conflict = await checkOrderConflict(rest.order, _id);
+    let finalOrder = rest.order;
+    let orderAdjusted = false;
+
+    if (conflict) {
+        finalOrder = await getNextAvailableOrder(rest.order);
+        orderAdjusted = true;
+    }
+
+    const finalDoc = { ...rest, order: finalOrder };
+    await collection().updateOne({ _id: new ObjectId(_id) }, { $set: finalDoc });
+
+    return {
+        ...doc,
+        order: finalOrder,
+        _meta: orderAdjusted ? { orderAdjusted: true, originalOrder: rest.order, newOrder: finalOrder } : undefined
+    };
 }
 
 export async function deleteProject(id: string) {
     await collection().deleteOne({ _id: new ObjectId(id) });
+}
+
+export async function reorderProjects(items: Array<{ id: string; order: number }>) {
+    const ids = items.map(item => new ObjectId(item.id));
+    const existingProjects = await collection().find({ _id: { $in: ids } }).toArray();
+
+    if (existingProjects.length !== items.length) {
+        throw new Error('One or more project IDs not found');
+    }
+
+    const bulkOps = items.map(item => ({
+        updateOne: {
+            filter: { _id: new ObjectId(item.id) },
+            update: { $set: { order: item.order } }
+        }
+    }));
+
+    await collection().bulkWrite(bulkOps);
+
+    return listProjects();
 }

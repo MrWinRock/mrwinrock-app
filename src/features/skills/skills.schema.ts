@@ -7,4 +7,7 @@ export const SkillSchema = z.object({
     order: z.number().int().nonnegative().default(0),
 });
 
+export const CreateSkillSchema = SkillSchema.omit({ order: true });
+
 export type SkillInput = z.infer<typeof SkillSchema>;
+export type CreateSkillInput = z.infer<typeof CreateSkillSchema>;
