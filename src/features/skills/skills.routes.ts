@@ -2,15 +2,19 @@ import { Hono } from 'hono';
 import { SkillSchema, CreateSkillSchema } from './skills.schema';
 import { requireApiKey } from '../../middleware/apiKey.ts';
 import { createSkill, listSkills, updateSkill, deleteSkill, reorderSkills } from './skills.repo';
+import { StorageService } from '../../services/storage';
+
 
 const skills = new Hono();
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_FILE_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'];
+
 
 skills.get('/', async (c) => {
     const data = await listSkills();
     return c.json({ ok: true, data });
 });
-
-import { StorageService } from '../../services/storage';
 
 skills.post('/', requireApiKey(), async (c) => {
     let body: any = {};
@@ -20,8 +24,19 @@ skills.post('/', requireApiKey(), async (c) => {
         const formData = await c.req.parseBody();
         body = { ...formData };
         if (body.icon instanceof File) {
-            const url = await StorageService.uploadFile(body.icon, 'skills');
-            body.icon = url;
+            if (body.icon.size > MAX_FILE_SIZE) {
+                return c.json({ ok: false, error: 'File size exceeds 5MB limit' }, 400);
+            }
+            if (!ALLOWED_FILE_TYPES.includes(body.icon.type)) {
+                return c.json({ ok: false, error: 'Invalid file type. Only images are allowed' }, 400);
+            }
+            try {
+                const url = await StorageService.uploadFile(body.icon, 'skills');
+                body.icon = url;
+            } catch (error) {
+                console.error('Error uploading file:', error);
+                return c.json({ ok: false, error: 'Failed to upload file' }, 500);
+            }
         }
     } else {
         body = await c.req.json().catch(() => ({}));
@@ -46,8 +61,19 @@ skills.put('/:id', requireApiKey(), async (c) => {
         const formData = await c.req.parseBody();
         body = { ...formData };
         if (body.icon instanceof File) {
-            const url = await StorageService.uploadFile(body.icon, 'skills');
-            body.icon = url;
+            if (body.icon.size > MAX_FILE_SIZE) {
+                return c.json({ ok: false, error: 'File size exceeds 5MB limit' }, 400);
+            }
+            if (!ALLOWED_FILE_TYPES.includes(body.icon.type)) {
+                return c.json({ ok: false, error: 'Invalid file type. Only images are allowed' }, 400);
+            }
+            try {
+                const url = await StorageService.uploadFile(body.icon, 'skills');
+                body.icon = url;
+            } catch (error) {
+                console.error('Error uploading file:', error);
+                return c.json({ ok: false, error: 'Failed to upload file' }, 500);
+            }
         }
     } else {
         body = await c.req.json().catch(() => ({}));

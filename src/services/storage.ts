@@ -1,4 +1,5 @@
 import { Storage } from '@google-cloud/storage';
+import { randomUUID } from 'node:crypto';
 import { env } from '../config/env';
 
 const storage = new Storage({
@@ -15,12 +16,12 @@ export class StorageService {
     static async uploadFile(file: File, path: string): Promise<string> {
         const buffer = await file.arrayBuffer();
         const fileBuffer = Buffer.from(buffer);
-        const fileName = `${path}/${Date.now()}-${file.name}`;
+        const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const fileName = `${path}/${randomUUID()}-${sanitizedFileName}`;
         const blob = bucket.file(fileName);
 
         await blob.save(fileBuffer, {
             contentType: file.type,
-            // public: true,
         });
 
         return blob.publicUrl();
