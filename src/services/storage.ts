@@ -2,28 +2,61 @@ import { Storage } from '@google-cloud/storage';
 import { randomUUID } from 'node:crypto';
 import { env } from '../config/env';
 
-const storage = new Storage({
-    projectId: env.GOOGLE_CLOUD_PROJECT_ID,
-    credentials: {
-        client_email: env.GOOGLE_CLOUD_CLIENT_EMAIL,
-        private_key: env.GOOGLE_CLOUD_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    },
-});
+function formatPrivateKey(key: string | undefined): string | undefined {
+    if (!key) return undefined;
+    if (key.includes('\n') && !key.includes('\\n')) {
+        throw new Error(
+            'GOOGLE_CLOUD_PRIVATE_KEY contains actual newlines. ' +
+            'It should be a single-line string with literal \\n sequences. ' +
+            'Please check your environment variable formatting.'
+        );
+    }
+    return key.replace(/\\n/g, '\n');
+}
 
-const bucket = storage.bucket(env.GOOGLE_CLOUD_BUCKET_NAME);
+let storage: Storage | null = null;
+let bucket: any = null;
+
+if (
+    env.GOOGLE_CLOUD_PROJECT_ID &&
+    env.GOOGLE_CLOUD_CLIENT_EMAIL &&
+    env.GOOGLE_CLOUD_PRIVATE_KEY &&
+    env.GOOGLE_CLOUD_BUCKET_NAME
+) {
+    storage = new Storage({
+        projectId: env.GOOGLE_CLOUD_PROJECT_ID,
+        credentials: {
+            client_email: env.GOOGLE_CLOUD_CLIENT_EMAIL,
+            private_key: formatPrivateKey(env.GOOGLE_CLOUD_PRIVATE_KEY),
+        },
+    });
+    bucket = storage.bucket(env.GOOGLE_CLOUD_BUCKET_NAME);
+}
 
 export class StorageService {
     static async uploadFile(file: File, path: string): Promise<string> {
-        const buffer = await file.arrayBuffer();
-        const fileBuffer = Buffer.from(buffer);
-        const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-        const fileName = `${path}/${randomUUID()}-${sanitizedFileName}`;
-        const blob = bucket.file(fileName);
+        if (!bucket) {
+            throw new Error('Google Cloud Storage is not configured.');
+        }
 
-        await blob.save(fileBuffer, {
-            contentType: file.type,
-        });
+        try {
+            const buffer = await file.arrayBuffer();
+            const fileBuffer = Buffer.from(buffer);
+            // Sanitize filename: remove any non-alphanumeric chars except dots, hyphens, and underscores
+            const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const fileName = `${path}/${randomUUID()}-${sanitizedFileName}`;
+            const blob = bucket.file(fileName);
 
-        return blob.publicUrl();
+            await blob.save(fileBuffer, {
+                contentType: file.type,
+            });
+
+            return blob.publicUrl();
+        } catch (error) {
+            throw new Error(
+                `Failed to upload file "${file.name}" to path "${path}": ${error instanceof Error ? error.message : String(error)
+                }`
+            );
+        }
     }
 }
