@@ -1,5 +1,6 @@
 import app from './app.ts';
 import { connectMongo } from './db/mongo.ts';
+import { cleanupRateLimitStore } from './middleware/rateLimit.ts';
 
 const port = Number(process.env.PORT || 8080);
 
@@ -8,6 +9,12 @@ await connectMongo().catch((e) => {
   process.exit(1);
 });
 
+// Cleanup rate limit store every hour
+setInterval(() => {
+  cleanupRateLimitStore();
+  console.log('[Rate Limit] Cleaned up old entries from rate limit store');
+}, 60 * 60 * 1000);
+
 const server = Bun.serve({
   hostname: "0.0.0.0",
   port,
@@ -15,4 +22,5 @@ const server = Bun.serve({
 });
 
 console.log(`Server listening on port ${server.port}`);
+
 
