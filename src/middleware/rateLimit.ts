@@ -31,9 +31,11 @@ function cleanupTimestamps(timestamps: number[], now: number): number[] {
 
 /**
  * Get client identifier from request
+ * Falls back to 'unknown' if IP cannot be determined - all unknown clients share the same rate limit
+ * This is acceptable as it provides a baseline protection even for clients without IP headers
  */
 function getClientId(c: Context): string {
-  // Try to get IP from various headers
+  // Try to get IP from various headers (common in proxy/load balancer setups)
   const forwardedFor = c.req.header('x-forwarded-for');
   if (forwardedFor) {
     return forwardedFor.split(',')[0]?.trim() || 'unknown';
@@ -44,7 +46,8 @@ function getClientId(c: Context): string {
     return realIp;
   }
   
-  // Fallback to a generic identifier
+  // Fallback to a shared rate limit for all unidentified clients
+  // Note: In production, consider using connection.remoteAddress if available
   return 'unknown';
 }
 
@@ -70,6 +73,7 @@ function calculateResetTime(timestamps: number[], windowMs: number, now: number)
 
 /**
  * Rate limiting middleware factory
+ * Note: This implementation is safe for Bun's single-threaded runtime
  */
 export function rateLimit(config: RateLimitConfig = {}) {
   const limits = { ...DEFAULT_CONFIG, ...config };
@@ -85,7 +89,7 @@ export function rateLimit(config: RateLimitConfig = {}) {
       requestStore.set(clientId, record);
     }
 
-    // Clean up old timestamps
+    // Clean up old timestamps (keep only last 24 hours)
     record.timestamps = cleanupTimestamps(record.timestamps, now);
 
     // Check rate limits
@@ -99,22 +103,26 @@ export function rateLimit(config: RateLimitConfig = {}) {
     let limitType = '';
     let limit = 0;
     let remaining = 0;
+    let resetTime = Math.ceil((now + 24 * 60 * 60 * 1000) / 1000); // Default to daily reset
 
     if (secondCount >= limits.rps) {
       limitExceeded = true;
       retryAfter = calculateResetTime(record.timestamps, 1000, now);
+      resetTime = Math.ceil((now + retryAfter * 1000) / 1000);
       limitType = 'per second';
       limit = limits.rps;
       remaining = 0;
     } else if (minuteCount >= limits.rpm) {
       limitExceeded = true;
       retryAfter = calculateResetTime(record.timestamps, 60 * 1000, now);
+      resetTime = Math.ceil((now + retryAfter * 1000) / 1000);
       limitType = 'per minute';
       limit = limits.rpm;
       remaining = 0;
     } else if (dayCount >= limits.daily) {
       limitExceeded = true;
       retryAfter = calculateResetTime(record.timestamps, 24 * 60 * 60 * 1000, now);
+      resetTime = Math.ceil((now + retryAfter * 1000) / 1000);
       limitType = 'per day';
       limit = limits.daily;
       remaining = 0;
@@ -131,7 +139,7 @@ export function rateLimit(config: RateLimitConfig = {}) {
       // Set rate limit headers
       c.header('X-RateLimit-Limit', String(limit));
       c.header('X-RateLimit-Remaining', '0');
-      c.header('X-RateLimit-Reset', String(Math.ceil((now + retryAfter * 1000) / 1000)));
+      c.header('X-RateLimit-Reset', String(resetTime));
       c.header('Retry-After', String(retryAfter || 1));
 
       return c.json({
@@ -145,7 +153,6 @@ export function rateLimit(config: RateLimitConfig = {}) {
     record.timestamps.push(now);
 
     // Set rate limit headers for successful requests
-    const resetTime = Math.ceil((now + 24 * 60 * 60 * 1000) / 1000); // Next day
     c.header('X-RateLimit-Limit', String(limits.daily));
     c.header('X-RateLimit-Remaining', String(remaining));
     c.header('X-RateLimit-Reset', String(resetTime));

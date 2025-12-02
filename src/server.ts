@@ -10,10 +10,23 @@ await connectMongo().catch((e) => {
 });
 
 // Cleanup rate limit store every hour
-setInterval(() => {
+const cleanupInterval = setInterval(() => {
   cleanupRateLimitStore();
   console.log('[Rate Limit] Cleaned up old entries from rate limit store');
 }, 60 * 60 * 1000);
+
+// Cleanup on shutdown
+process.on('SIGINT', () => {
+  console.log('\nShutting down gracefully...');
+  clearInterval(cleanupInterval);
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('\nShutting down gracefully...');
+  clearInterval(cleanupInterval);
+  process.exit(0);
+});
 
 const server = Bun.serve({
   hostname: "0.0.0.0",
@@ -22,5 +35,4 @@ const server = Bun.serve({
 });
 
 console.log(`Server listening on port ${server.port}`);
-
 
