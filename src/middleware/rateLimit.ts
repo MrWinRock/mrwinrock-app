@@ -16,7 +16,7 @@ const requestStore = new Map<string, RequestRecord>();
 // Default configuration
 const DEFAULT_CONFIG: Required<RateLimitConfig> = {
   rps: 5,
-  rpm: 50,
+  rpm: 100,
   daily: 5000,
 };
 
@@ -40,12 +40,12 @@ function getClientId(c: Context): string {
   if (forwardedFor) {
     return forwardedFor.split(',')[0]?.trim() || 'unknown';
   }
-  
+
   const realIp = c.req.header('x-real-ip');
   if (realIp) {
     return realIp;
   }
-  
+
   // Fallback to a shared rate limit for all unidentified clients
   // Note: In production, consider using connection.remoteAddress if available
   return 'unknown';
@@ -168,10 +168,10 @@ export function rateLimit(config: RateLimitConfig = {}) {
 export function cleanupRateLimitStore(): void {
   const now = Date.now();
   const oneDayAgo = now - 24 * 60 * 60 * 1000;
-  
+
   for (const [clientId, record] of requestStore.entries()) {
     record.timestamps = record.timestamps.filter(ts => ts > oneDayAgo);
-    
+
     // Remove entries with no recent timestamps
     if (record.timestamps.length === 0) {
       requestStore.delete(clientId);

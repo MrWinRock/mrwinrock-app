@@ -7,7 +7,7 @@ This API implements comprehensive rate limiting to ensure fair usage and protect
 The following rate limits are applied to all `/api/*` endpoints:
 
 - **RPS (Requests Per Second)**: 5 requests/second
-- **RPM (Requests Per Minute)**: 50 requests/minute  
+- **RPM (Requests Per Minute)**: 100 requests/minute  
 - **Daily Quota**: 5,000 requests/day
 
 ## Rate Limit Headers
