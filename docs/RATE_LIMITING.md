@@ -35,14 +35,16 @@ The response also includes a `Retry-After` header indicating how many seconds to
 ## Example Response Headers
 
 **Successful Request:**
-```
+
+```txt
 X-RateLimit-Limit: 5000
 X-RateLimit-Remaining: 4999
 X-RateLimit-Reset: 1764781702
 ```
 
 **Rate Limited Request:**
-```
+
+```txt
 X-RateLimit-Limit: 5
 X-RateLimit-Remaining: 0
 X-RateLimit-Reset: 1764695303
