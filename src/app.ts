@@ -5,6 +5,7 @@ import routes from './routes'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { env } from './config/env'
 import { requireApiKey } from './middleware/apiKey'
+import { rateLimit } from './middleware/rateLimit'
 
 const app = new Hono()
 
@@ -71,6 +72,8 @@ const requireAccess = async (c: any, next: any) => {
 };
 
 app.use('/admin/*', requireAccess);
+
+app.use('/api/*', rateLimit());
 
 app.use('/api/*', requireApiKey())
 
