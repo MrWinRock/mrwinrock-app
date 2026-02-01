@@ -110,10 +110,24 @@ export function rateLimit(config: RateLimitConfig = {}) {
     // Clean up old timestamps (keep only last 24 hours)
     record.timestamps = cleanupTimestamps(record.timestamps, now);
 
-    // Check rate limits
-    const secondCount = countRequestsInWindow(record.timestamps, 1000, now);
-    const minuteCount = countRequestsInWindow(record.timestamps, 60 * 1000, now);
-    const dayCount = countRequestsInWindow(record.timestamps, 24 * 60 * 60 * 1000, now);
+    // Check rate limits using a single pass over timestamps
+    const oneSecondAgo = now - 1000;
+    const oneMinuteAgo = now - 60 * 1000;
+    let secondCount = 0;
+    let minuteCount = 0;
+    // After cleanup, timestamps only contain the last 24 hours
+    const dayCount = record.timestamps.length;
+    // Iterate from newest to oldest and stop once we leave the 1-minute window
+    for (let i = record.timestamps.length - 1; i >= 0; i--) {
+      const ts = record.timestamps[i];
+      if (ts === undefined || ts <= oneMinuteAgo) {
+        break;
+      }
+      minuteCount++;
+      if (ts > oneSecondAgo) {
+        secondCount++;
+      }
+    }
 
     // Determine which limit is exceeded
     let limitExceeded = false;
