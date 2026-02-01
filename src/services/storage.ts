@@ -43,9 +43,12 @@ export class StorageService {
             const fileBuffer = Buffer.from(buffer);
             // Sanitize filename: remove any non-alphanumeric chars except dots, hyphens, and underscores
             const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-            // Normalize path: remove trailing slashes to prevent double slashes
-            const normalizedPath = path.replace(/\/+$/, '');
-            const fileName = `${normalizedPath}/${sanitizedFileName}`;
+            // Normalize path: trim whitespace and remove leading/trailing slashes
+            const trimmedPath = path.trim();
+            const normalizedPath = trimmedPath.replace(/^\/+|\/+$/g, '');
+            const fileName = normalizedPath
+                ? `${normalizedPath}/${sanitizedFileName}`
+                : sanitizedFileName;
             const blob = bucket.file(fileName);
 
             await blob.save(fileBuffer, {
