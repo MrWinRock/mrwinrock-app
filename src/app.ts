@@ -5,6 +5,7 @@ import routes from './routes'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { env } from './config/env'
 import { requireApiKey } from './middleware/apiKey'
+import { rateLimit } from './middleware/rateLimit'
 
 const app = new Hono()
 
@@ -72,6 +73,8 @@ const requireAccess = async (c: any, next: any) => {
 
 app.use('/admin/*', requireAccess);
 
+app.use('/api/*', rateLimit());
+
 app.use('/api/*', requireApiKey())
 
 app.get('/', c => c.json({ ok: true, message: 'Welcome to MrWinRock API' }));
@@ -102,5 +105,8 @@ app.get('/fish', c => c.json({ fish: '<><' }));
 
 app.route('/api', routes);
 app.route('/admin', routes);
+
+connectMongo()
+  .catch((err) => console.error('Failed to connect to MongoDB:', err));
 
 export default app;

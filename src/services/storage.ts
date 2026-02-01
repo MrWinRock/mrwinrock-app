@@ -1,5 +1,4 @@
 import { Storage } from '@google-cloud/storage';
-import { randomUUID } from 'node:crypto';
 import { env } from '../config/env';
 
 function formatPrivateKey(key: string | undefined): string | undefined {
@@ -44,14 +43,20 @@ export class StorageService {
             const fileBuffer = Buffer.from(buffer);
             // Sanitize filename: remove any non-alphanumeric chars except dots, hyphens, and underscores
             const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-            const fileName = `${path}/${randomUUID()}-${sanitizedFileName}`;
+            // Normalize path: trim whitespace and remove leading/trailing slashes
+            const trimmedPath = path.trim();
+            const normalizedPath = trimmedPath.replace(/^\/+|\/+$/g, '');
+            const fileName = normalizedPath
+                ? `${normalizedPath}/${sanitizedFileName}`
+                : sanitizedFileName;
             const blob = bucket.file(fileName);
 
             await blob.save(fileBuffer, {
                 contentType: file.type,
             });
 
-            return blob.publicUrl();
+            const publicUrl = `https://storage.googleapis.com/${env.GOOGLE_CLOUD_BUCKET_NAME}/${fileName}`;
+            return publicUrl;
         } catch (error) {
             throw new Error(
                 `Failed to upload file "${file.name}" to path "${path}": ${error instanceof Error ? error.message : String(error)
