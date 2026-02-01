@@ -47,7 +47,7 @@ async function processSkillBody(c: any): Promise<Partial<SkillRequestBody>> {
                 throw new Error('Invalid file type. Only images are allowed');
             }
             try {
-                const url = await StorageService.uploadFile(file, 'skills');
+                const url = await StorageService.uploadFile(file, 'skills/icons/');
                 body.icon = url;
             } catch (error) {
                 console.error(

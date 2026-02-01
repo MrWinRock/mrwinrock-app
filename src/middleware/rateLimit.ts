@@ -15,9 +15,9 @@ const requestStore = new Map<string, RequestRecord>();
 
 // Default configuration
 const DEFAULT_CONFIG: Required<RateLimitConfig> = {
-  rps: 5,
-  rpm: 100,
-  daily: 5000,
+  rps: 10,
+  rpm: 1000,
+  daily: 50000,
 };
 
 /**
@@ -29,25 +29,43 @@ function cleanupTimestamps(timestamps: number[], now: number): number[] {
   return timestamps.filter(ts => ts > oneDayAgo);
 }
 
+// Whether to trust proxy-provided IP headers like x-forwarded-for / x-real-ip.
+// Defaults to false to avoid trusting client-controlled headers unless explicitly enabled.
+const TRUST_PROXY = false;
+
+// Basic IP address validation (IPv4 and IPv6) to ensure header values are sane before use.
+function isValidIp(ip: string): boolean {
+  const ipv4Regex =
+    /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+  const ipv6Regex =
+    /^(([0-9a-fA-F]{1,4}):){7}([0-9a-fA-F]{1,4})$/;
+  return ipv4Regex.test(ip) || ipv6Regex.test(ip);
+}
+
 /**
  * Get client identifier from request
  * Falls back to 'unknown' if IP cannot be determined - all unknown clients share the same rate limit
  * This is acceptable as it provides a baseline protection even for clients without IP headers
  */
 function getClientId(c: Context): string {
-  // Try to get IP from various headers (common in proxy/load balancer setups)
-  const forwardedFor = c.req.header('x-forwarded-for');
-  if (forwardedFor) {
-    return forwardedFor.split(',')[0]?.trim() || 'unknown';
+  if (TRUST_PROXY) {
+    // Try to get IP from various headers (common in proxy/load balancer setups)
+    const forwardedFor = c.req.header('x-forwarded-for');
+    if (forwardedFor) {
+      const candidate = forwardedFor.split(',')[0]?.trim();
+      if (candidate && isValidIp(candidate)) {
+        return candidate;
+      }
+    }
+
+    const realIp = c.req.header('x-real-ip');
+    if (realIp && isValidIp(realIp.trim())) {
+      return realIp.trim();
+    }
   }
 
-  const realIp = c.req.header('x-real-ip');
-  if (realIp) {
-    return realIp;
-  }
-
-  // Fallback to a shared rate limit for all unidentified clients
-  // Note: In production, consider using connection.remoteAddress if available
+  // Fallback to a shared rate limit for all unidentified clients.
+  // Note: In production, consider using connection.remoteAddress from the server runtime if available.
   return 'unknown';
 }
 
@@ -127,11 +145,11 @@ export function rateLimit(config: RateLimitConfig = {}) {
       limit = limits.daily;
       remaining = 0;
     } else {
-      // Calculate remaining based on the most restrictive upcoming limit
-      const rpsRemaining = limits.rps - secondCount;
-      const rpmRemaining = limits.rpm - minuteCount;
-      const dayRemaining = limits.daily - dayCount;
-      remaining = Math.min(rpsRemaining, rpmRemaining, dayRemaining);
+      // Calculate remaining based on the most restrictive upcoming limit,
+      const rpsRemaining = limits.rps - secondCount - 1;
+      const rpmRemaining = limits.rpm - minuteCount - 1;
+      const dayRemaining = limits.daily - dayCount - 1;
+      remaining = Math.max(0, Math.min(rpsRemaining, rpmRemaining, dayRemaining));
       limit = limits.daily; // Use daily as the overall limit for headers
     }
 

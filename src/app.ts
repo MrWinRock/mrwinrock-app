@@ -106,4 +106,7 @@ app.get('/fish', c => c.json({ fish: '<><' }));
 app.route('/api', routes);
 app.route('/admin', routes);
 
+connectMongo()
+  .catch((err) => console.error('Failed to connect to MongoDB:', err));
+
 export default app;

@@ -15,19 +15,6 @@ const cleanupInterval = setInterval(() => {
   console.log('[Rate Limit] Cleaned up old entries from rate limit store');
 }, 60 * 60 * 1000);
 
-// Cleanup on shutdown
-process.on('SIGINT', () => {
-  console.log('\nShutting down gracefully...');
-  clearInterval(cleanupInterval);
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  console.log('\nShutting down gracefully...');
-  clearInterval(cleanupInterval);
-  process.exit(0);
-});
-
 const server = Bun.serve({
   hostname: "0.0.0.0",
   port,
@@ -36,3 +23,28 @@ const server = Bun.serve({
 
 console.log(`Server listening on port ${server.port}`);
 
+// Graceful shutdown handler
+async function gracefulShutdown(signal: string) {
+  console.log(`\n[${signal}] Shutting down gracefully...`);
+
+  // Stop accepting new connections
+  server.stop();
+  console.log('[Shutdown] Server stopped accepting connections');
+
+  // Clear the cleanup interval
+  clearInterval(cleanupInterval);
+
+  // Run final rate limit cleanup
+  cleanupRateLimitStore();
+  console.log('[Shutdown] Rate limit store cleaned up');
+
+  // Disconnect from MongoDB
+  const { disconnectMongo } = await import('./db/mongo.ts');
+  await disconnectMongo();
+  console.log('[Shutdown] MongoDB disconnected');
+
+  process.exit(0);
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
