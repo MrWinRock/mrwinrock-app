@@ -4,6 +4,25 @@ import type { SkillInput, CreateSkillInput } from './skills.schema';
 
 const collection = () => getCollection<SkillInput>('skills');
 
+// Predefined category order
+const CATEGORY_ORDER = [
+    'programming',
+    'web',
+    'mobile',
+    'backend',
+    'databases',
+    'cloud',
+    'devtools',
+    'game',
+    'design',
+    'other',
+] as const;
+
+function getCategoryOrderFlag(category: string): number {
+    const index = CATEGORY_ORDER.indexOf(category as typeof CATEGORY_ORDER[number]);
+    return index >= 0 ? index : CATEGORY_ORDER.length; // Unknown categories go to the end
+}
+
 async function getMaxOrderInCategory(category: string | undefined): Promise<number> {
     const query = category ? { category } : { category: { $exists: false } };
     const result = await collection()
@@ -26,17 +45,27 @@ async function reorderCategoryAfterDelete(category: string | undefined, deletedO
 export async function listSkills() {
     const skills = await collection().find({}).sort({ category: 1, order: 1, name: 1 }).toArray();
     
-    // Group skills by category
-    const grouped: Record<string, typeof skills> = {};
+    // Group skills by category with order_flag
+    const grouped: Record<string, { order_flag: number; skills: typeof skills }> = {};
     for (const skill of skills) {
         const categoryKey = skill.category || 'uncategorized';
         if (!grouped[categoryKey]) {
-            grouped[categoryKey] = [];
+            grouped[categoryKey] = {
+                order_flag: getCategoryOrderFlag(categoryKey),
+                skills: []
+            };
         }
-        grouped[categoryKey]!.push(skill);
+        grouped[categoryKey]!.skills.push(skill);
     }
     
-    return grouped;
+    // Sort by order_flag
+    const sortedEntries = Object.entries(grouped).sort((a, b) => a[1].order_flag - b[1].order_flag);
+    const result: Record<string, { order_flag: number; skills: typeof skills }> = {};
+    for (const [key, value] of sortedEntries) {
+        result[key] = value;
+    }
+    
+    return result;
 }
 
 export async function createSkill(doc: CreateSkillInput) {

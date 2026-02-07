@@ -178,7 +178,7 @@ Auth:
 
 ### GET /{base}/skills
 
-List all skills grouped by category. Within each category, skills are ordered by order, name.
+List all skills grouped by category. Categories are sorted by predefined order. Within each category, skills are ordered by order, name.
 
 Response 200:
 
@@ -186,35 +186,56 @@ Response 200:
 {
   "ok": true,
   "data": {
-    "programming": [
-      {
-        "_id": "507f1f77bcf86cd799439011",
-        "name": "JavaScript",
-        "category": "programming",
-        "icon": "https://...",
-        "order": 1
-      }
-    ],
-    "web": [
-      {
-        "_id": "507f1f77bcf86cd799439012",
-        "name": "React",
-        "category": "web",
-        "order": 1
-      },
-      {
-        "_id": "507f1f77bcf86cd799439013",
-        "name": "Next.js",
-        "category": "web",
-        "order": 2
-      }
-    ],
-    "uncategorized": [...]
+    "programming": {
+      "order_flag": 0,
+      "skills": [
+        {
+          "_id": "507f1f77bcf86cd799439011",
+          "name": "JavaScript",
+          "category": "programming",
+          "icon": "https://...",
+          "order": 1
+        }
+      ]
+    },
+    "web": {
+      "order_flag": 1,
+      "skills": [
+        {
+          "_id": "507f1f77bcf86cd799439012",
+          "name": "React",
+          "category": "web",
+          "order": 1
+        },
+        {
+          "_id": "507f1f77bcf86cd799439013",
+          "name": "Next.js",
+          "category": "web",
+          "order": 2
+        }
+      ]
+    }
   }
 }
 ```
 
-Note: Skills without a category are grouped under `"uncategorized"`.
+**Category order (order_flag):**
+
+| order_flag | category               |
+|------------|------------------------|
+| 0          | programming            |
+| 1          | web                    |
+| 2          | mobile                 |
+| 3          | backend                |
+| 4          | databases              |
+| 5          | cloud                  |
+| 6          | devtools               |
+| 7          | game                   |
+| 8          | design                 |
+| 9          | other                  |
+| 10+        | uncategorized / unknown|
+
+Note: Skills without a category are grouped under `"uncategorized"` with order_flag = 10.
 
 ### POST /{base}/skills
 
@@ -249,6 +270,7 @@ Validation error 400:
 Update a skill by id (24-char hex).
 
 **Category change behavior:** When a skill's category is changed:
+
 1. The old category is reordered (skills after the moved one have their `order` decremented)
 2. The skill is assigned a new `order` at the end of the new category
 
