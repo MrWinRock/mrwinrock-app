@@ -5,9 +5,11 @@ export const SkillSchema = z.object({
     category: z.string().optional(),
     icon: z.string().url().optional(),
     order: z.number().int().nonnegative().default(0),
+    categoryOrder: z.number().int().nonnegative().default(0),
 });
 
-export const CreateSkillSchema = SkillSchema.omit({ order: true });
+export const CreateSkillSchema = SkillSchema.omit({ order: true, categoryOrder: true });
 
 export type SkillInput = z.infer<typeof SkillSchema>;
 export type CreateSkillInput = z.infer<typeof CreateSkillSchema>;
+

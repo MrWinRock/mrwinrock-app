@@ -165,9 +165,13 @@ Skill object:
   "category"?: string,
   "icon"?: string (url),
   "order": number,
+  "categoryOrder": number,
   "_id"?: string
 }
 ```
+
+- `order`: Global display order across all skills
+- `categoryOrder`: Order within the skill's category (for grouping skills by category)
 
 Auth:
 
@@ -176,7 +180,7 @@ Auth:
 
 ### GET /{base}/skills
 
-List all skills ordered by order, name.
+List all skills ordered by category, categoryOrder, order, name.
 
 Response 200:
 
@@ -186,7 +190,9 @@ Response 200:
 
 ### POST /{base}/skills
 
-Create a skill. The `order` field is auto-assigned as `max(order) + 1`.
+Create a skill. Both `order` and `categoryOrder` are auto-assigned:
+- `order` = max(order) + 1 (global)
+- `categoryOrder` = max(categoryOrder within same category) + 1
 
 Request body (validated by CreateSkillSchema):
 
@@ -198,7 +204,7 @@ Request body (validated by CreateSkillSchema):
 }
 ```
 
-Note: The `order` field is NOT accepted in the request body. It will be automatically assigned.
+Note: The `order` and `categoryOrder` fields are NOT accepted in the request body. They will be automatically assigned.
 
 Success 201:
 
@@ -216,11 +222,25 @@ Validation error 400:
 
 Update a skill by id (24-char hex).
 
+**Category change behavior:** When a skill's category is changed:
+1. The old category is reordered (skills after the moved one have their `categoryOrder` decremented)
+2. The skill is assigned a new `categoryOrder` at the end of the new category
+
 Path param:
 
 - id: string (24 hex chars)
 
-Request body (SkillSchema): same shape as POST.
+Request body (SkillSchema):
+
+```json
+{
+  "name": string,
+  "category"?: string,
+  "icon"?: string (url),
+  "order": number,
+  "categoryOrder": number
+}
+```
 
 Success 200:
 
@@ -250,6 +270,8 @@ Errors:
 
 Delete a skill by id.
 
+**Auto-reorder behavior:** When a skill is deleted, all skills in the same category with a higher `categoryOrder` are decremented by 1 to maintain contiguous ordering.
+
 Path param:
 
 - id: string (24 hex chars)
@@ -267,21 +289,25 @@ Errors:
 
 ### PATCH /{base}/skills/reorder
 
-Bulk reorder skills. Updates the order field for multiple skills in a single atomic operation.
+Bulk reorder skills. Updates `order` and/or `categoryOrder` fields for multiple skills in a single atomic operation.
 
 Request body:
 
 ```json
 {
   "items": [
-    { "id": "507f1f77bcf86cd799439011", "order": 0 },
-    { "id": "507f1f77bcf86cd799439012", "order": 1 },
-    { "id": "507f1f77bcf86cd799439013", "order": 2 }
+    { "id": "507f1f77bcf86cd799439011", "order": 0, "categoryOrder": 1 },
+    { "id": "507f1f77bcf86cd799439012", "categoryOrder": 2 },
+    { "id": "507f1f77bcf86cd799439013", "order": 3 }
   ]
 }
 ```
 
-- `items`: array of objects with `id` (24-char hex) and `order` (non-negative integer)
+- `items`: array of objects with:
+  - `id` (required): 24-char hex string
+  - `order` (optional): non-negative integer for global order
+  - `categoryOrder` (optional): non-negative integer for order within category
+  - At least one of `order` or `categoryOrder` must be provided
 
 Success 200:
 
@@ -289,18 +315,26 @@ Success 200:
 { "ok": true, "data": Skill[] }
 ```
 
-```json
-{
-  "title": string,
-  "description": string,
-  "url"?: string (url),
-  "repo"?: string (url),
-  "tech": string[],
-  "featured": boolean,
-  "order": number,
-  "_id"?: string
-}
-```
+Returns the complete list of skills in the new order.
+
+Errors:
+
+- 400: `{ "ok": false, "error": "Expected { items: Array<{ id, order?, categoryOrder? }> }" }`
+- 400: `{ "ok": false, "error": "Each item must have a valid 24-character id" }`
+- 400: `{ "ok": false, "error": "order must be a non-negative integer" }`
+- 400: `{ "ok": false, "error": "categoryOrder must be a non-negative integer" }`
+- 400: `{ "ok": false, "error": "Each item must have at least order or categoryOrder" }`
+- 400: `{ "ok": false, "error": "One or more skill IDs not found" }`
+
+---
+
+## Projects
+
+Base path: /{base}/projects  
+Routes: [src/features/projects/projects.routes.ts](src/features/projects/projects.routes.ts)  
+Schema: [`ProjectSchema`](src/features/projects/projects.schema.ts)
+
+Project object:
 
 Auth:
 
