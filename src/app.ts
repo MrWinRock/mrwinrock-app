@@ -4,7 +4,6 @@ import { connectMongo } from './db/mongo'
 import routes from './routes'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { env } from './config/env'
-import { requireApiKey } from './middleware/apiKey'
 import { rateLimit } from './middleware/rateLimit'
 
 const app = new Hono()
@@ -18,20 +17,19 @@ const PUBLIC_ORIGINS = [
   'http://127.0.0.1:4173',
   // Production
   'https://mrwinrock.com',
-  'https://www.mrwinrock.com',
   'https://admin.mrwinrock.com',
 ];
 
 const ALLOW = new Set(PUBLIC_ORIGINS);
 
-app.use('/*', cors({
+app.use('/api/*', cors({
   origin: (origin) => {
     if (!origin) return '*';
     return ALLOW.has(origin) ? origin : '';
   },
   credentials: false,
-  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
+  allowMethods: ['GET', 'OPTIONS'],
+  allowHeaders: ['Content-Type'],
   maxAge: 86400
 }));
 
@@ -58,6 +56,15 @@ app.use('/admin/*', cors({
 const jwks = createRemoteJWKSet(new URL(`https://${env.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`));
 
 const requireAccess = async (c: any, next: any) => {
+  // Development: allow x-api-key as alternative auth
+  if (env.NODE_ENV === 'development') {
+    const apiKey = c.req.header('x-api-key');
+    if (apiKey && apiKey === env.API_KEY) {
+      return next();
+    }
+  }
+
+  // Production: require Cloudflare Access JWT
   const t = c.req.header('Cf-Access-Jwt-Assertion');
   if (!t) return c.text('unauthorized', 401);
   try {
@@ -75,7 +82,12 @@ app.use('/admin/*', requireAccess);
 
 app.use('/api/*', rateLimit());
 
-app.use('/api/*', requireApiKey())
+app.use('/api/*', async (c, next) => {
+  if (c.req.method !== 'GET') {
+    return c.json({ ok: false, error: 'Method not allowed' }, 405);
+  }
+  await next();
+});
 
 app.get('/', c => c.json({ ok: true, message: 'Welcome to MrWinRock API' }));
 

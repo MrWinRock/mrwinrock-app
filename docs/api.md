@@ -10,15 +10,14 @@ The same resource routes are mounted under both /api and /admin. Authentication 
 
 ## Authentication and headers
 
-- x-api-key: API key header enforced by [`requireApiKey`](src/middleware/apiKey.ts).
-  - On /api/*: required for all requests.
-  - On /admin/*: required only for write endpoints where route explicitly uses the middleware (POST/PUT on skills/projects/experience). Contact and health under /admin do not require x-api-key.
-  - In development (NODE_ENV=development), missing key is allowed.
-- Cf-Access-Jwt-Assertion: Required on all /admin/* requests. Verified against Cloudflare Access using [`requireAccess`](src/app.ts).
+- /api/*: **Read-only (GET only)**. Protected by CORS and rate limiting. Write operations return 405 Method Not Allowed.
+- /admin/*:
+  - **Production**: Requires `Cf-Access-Jwt-Assertion` header (Cloudflare Access JWT).
+  - **Development**: Accepts `x-api-key` header as alternative (set `API_KEY` env var).
 
 CORS:
 
-- /api/* origins: localhost:5173/4173, mrwinrock.com, <www.mrwinrock.com>, admin.mrwinrock.com
+- /api/* origins: localhost:5173/4173, mrwinrock.com, admin.mrwinrock.com
 - /admin/* origin: env ADMIN_ORIGIN (see [src/config/env.ts](src/config/env.ts))
 
 Content-Type: application/json for request bodies.
@@ -117,7 +116,7 @@ Base path: /{base}/health
 Router: [src/routes/health.routes.ts](src/routes/health.routes.ts)
 
 - Auth:
-  - /api/health/*: requires x-api-key
+  - /api/health/*: CORS + rate limiting
   - /admin/health/*: requires Cf-Access-Jwt-Assertion
 
 ### GET /{base}/health/
@@ -173,8 +172,8 @@ Skill object:
 
 Auth:
 
-- /api/skills: all methods require x-api-key
-- /admin/skills: GET requires Cf-Access-Jwt-Assertion; POST/PUT/DELETE require Cf-Access-Jwt-Assertion + x-api-key
+- /api/skills: CORS + rate limiting
+- /admin/skills: requires Cf-Access-Jwt-Assertion
 
 ### GET /{base}/skills
 
@@ -369,8 +368,8 @@ Project object:
 
 Auth:
 
-- /api/projects: all methods require x-api-key
-- /admin/projects: GET requires Cf-Access-Jwt-Assertion; POST/PUT/DELETE require Cf-Access-Jwt-Assertion + x-api-key
+- /api/projects: CORS + rate limiting
+- /admin/projects: requires Cf-Access-Jwt-Assertion
 
 ### GET /{base}/projects
 
@@ -514,8 +513,8 @@ Experience object:
 
 Auth:
 
-- /api/experience: GET requires x-api-key; POST requires x-api-key
-- /admin/experience: GET requires Cf-Access-Jwt-Assertion; POST requires Cf-Access-Jwt-Assertion + x-api-key
+- /api/experience: CORS + rate limiting
+- /admin/experience: requires Cf-Access-Jwt-Assertion
 
 ### GET /{base}/experience
 
@@ -569,8 +568,8 @@ Service: [`sendContactEmail`](src/features/contact/contact.service.ts)
 
 Auth:
 
-- /api/contact: requires x-api-key
-- /admin/contact: requires Cf-Access-Jwt-Assertion (no x-api-key)
+- /api/contact: CORS + rate limiting
+- /admin/contact: requires Cf-Access-Jwt-Assertion
 
 ### POST /{base}/contact
 
