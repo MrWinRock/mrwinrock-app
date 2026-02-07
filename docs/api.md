@@ -180,13 +180,39 @@ Auth:
 
 ### GET /{base}/skills
 
-List all skills ordered by category, categoryOrder, order, name.
+List all skills grouped by category. Within each category, skills are ordered by categoryOrder, order, name.
 
 Response 200:
 
 ```json
-{ "ok": true, "data": Skill[] }
+{
+  "ok": true,
+  "data": {
+    "programming": [
+      {
+        "_id": "507f1f77bcf86cd799439011",
+        "name": "JavaScript",
+        "category": "programming",
+        "icon": "https://...",
+        "order": 1,
+        "categoryOrder": 1
+      }
+    ],
+    "web": [
+      {
+        "_id": "507f1f77bcf86cd799439012",
+        "name": "React",
+        "category": "web",
+        "order": 2,
+        "categoryOrder": 1
+      }
+    ],
+    "uncategorized": [...]
+  }
+}
 ```
+
+Note: Skills without a category are grouped under `"uncategorized"`.
 
 ### POST /{base}/skills
 

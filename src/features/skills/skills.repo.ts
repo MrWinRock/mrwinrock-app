@@ -49,7 +49,19 @@ async function reorderCategoryAfterDelete(category: string | undefined, deletedC
 }
 
 export async function listSkills() {
-    return collection().find({}).sort({ category: 1, categoryOrder: 1, order: 1, name: 1 }).toArray();
+    const skills = await collection().find({}).sort({ category: 1, categoryOrder: 1, order: 1, name: 1 }).toArray();
+    
+    // Group skills by category
+    const grouped: Record<string, typeof skills> = {};
+    for (const skill of skills) {
+        const categoryKey = skill.category || 'uncategorized';
+        if (!grouped[categoryKey]) {
+            grouped[categoryKey] = [];
+        }
+        grouped[categoryKey]!.push(skill);
+    }
+    
+    return grouped;
 }
 
 export async function createSkill(doc: CreateSkillInput) {
