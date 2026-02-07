@@ -19,7 +19,6 @@ type SkillRequestBody = {
     category?: string;
     icon?: File | string;
     order?: number | string;
-    categoryOrder?: number | string;
 };
 
 
@@ -36,14 +35,6 @@ async function processSkillBody(c: any): Promise<Partial<SkillRequestBody>> {
             const parsedOrder = parseInt(body.order, 10);
             if (!isNaN(parsedOrder)) {
                 body.order = parsedOrder;
-            }
-        }
-
-        // Convert categoryOrder to number if it's a string
-        if (typeof body.categoryOrder === 'string') {
-            const parsedCategoryOrder = parseInt(body.categoryOrder, 10);
-            if (!isNaN(parsedCategoryOrder)) {
-                body.categoryOrder = parsedCategoryOrder;
             }
         }
 
@@ -108,21 +99,15 @@ skills.patch('/reorder', requireApiKey(), async (c) => {
     const body = await c.req.json().catch(() => ({}));
 
     if (!body.items || !Array.isArray(body.items)) {
-        return c.json({ ok: false, error: 'Expected { items: Array<{ id, order?, categoryOrder? }> }' }, 400);
+        return c.json({ ok: false, error: 'Expected { items: Array<{ id, order }> }' }, 400);
     }
 
     for (const item of body.items) {
         if (!item.id || typeof item.id !== 'string' || item.id.length !== 24) {
             return c.json({ ok: false, error: 'Each item must have a valid 24-character id' }, 400);
         }
-        if (item.order !== undefined && (typeof item.order !== 'number' || item.order < 0 || !Number.isInteger(item.order))) {
+        if (typeof item.order !== 'number' || item.order < 0 || !Number.isInteger(item.order)) {
             return c.json({ ok: false, error: 'order must be a non-negative integer' }, 400);
-        }
-        if (item.categoryOrder !== undefined && (typeof item.categoryOrder !== 'number' || item.categoryOrder < 0 || !Number.isInteger(item.categoryOrder))) {
-            return c.json({ ok: false, error: 'categoryOrder must be a non-negative integer' }, 400);
-        }
-        if (item.order === undefined && item.categoryOrder === undefined) {
-            return c.json({ ok: false, error: 'Each item must have at least order or categoryOrder' }, 400);
         }
     }
 

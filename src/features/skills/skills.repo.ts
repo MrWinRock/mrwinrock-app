@@ -4,52 +4,27 @@ import type { SkillInput, CreateSkillInput } from './skills.schema';
 
 const collection = () => getCollection<SkillInput>('skills');
 
-async function checkOrderConflict(order: number, excludeId?: string) {
-    const query: Record<string, unknown> = { order };
-    if (excludeId) {
-        query._id = { $ne: new ObjectId(excludeId) };
-    }
-    return collection().findOne(query);
-}
-
-async function getNextAvailableOrder(preferredOrder: number): Promise<number> {
-    let currentOrder = preferredOrder;
-    while (await checkOrderConflict(currentOrder)) {
-        currentOrder++;
-    }
-    return currentOrder;
-}
-
-async function getMaxOrder(): Promise<number> {
-    const result = await collection()
-        .find({})
-        .sort({ order: -1 })
-        .limit(1)
-        .toArray();
-    return result.length > 0 ? result[0]!.order : -1;
-}
-
-async function getMaxCategoryOrder(category: string | undefined): Promise<number> {
+async function getMaxOrderInCategory(category: string | undefined): Promise<number> {
     const query = category ? { category } : { category: { $exists: false } };
     const result = await collection()
         .find(query)
-        .sort({ categoryOrder: -1 })
+        .sort({ order: -1 })
         .limit(1)
         .toArray();
-    return result.length > 0 ? result[0]!.categoryOrder : -1;
+    return result.length > 0 ? result[0]!.order : 0;
 }
 
-async function reorderCategoryAfterDelete(category: string | undefined, deletedCategoryOrder: number) {
+async function reorderCategoryAfterDelete(category: string | undefined, deletedOrder: number) {
     const query = category ? { category } : { category: { $exists: false } };
-    // Decrement categoryOrder for all skills after the deleted one
+    // Decrement order for all skills after the deleted one in same category
     await collection().updateMany(
-        { ...query, categoryOrder: { $gt: deletedCategoryOrder } },
-        { $inc: { categoryOrder: -1 } }
+        { ...query, order: { $gt: deletedOrder } },
+        { $inc: { order: -1 } }
     );
 }
 
 export async function listSkills() {
-    const skills = await collection().find({}).sort({ category: 1, categoryOrder: 1, order: 1, name: 1 }).toArray();
+    const skills = await collection().find({}).sort({ category: 1, order: 1, name: 1 }).toArray();
     
     // Group skills by category
     const grouped: Record<string, typeof skills> = {};
@@ -65,13 +40,11 @@ export async function listSkills() {
 }
 
 export async function createSkill(doc: CreateSkillInput) {
-    const maxOrder = await getMaxOrder();
-    const maxCategoryOrder = await getMaxCategoryOrder(doc.category);
+    const maxOrder = await getMaxOrderInCategory(doc.category);
     
     const finalDoc = {
         ...doc,
         order: maxOrder + 1,
-        categoryOrder: maxCategoryOrder + 1,
     };
     const res = await collection().insertOne(finalDoc);
 
@@ -90,39 +63,28 @@ export async function updateSkill(doc: SkillInput & { _id: string }) {
         throw new Error('Skill not found');
     }
 
-    let finalCategoryOrder = rest.categoryOrder;
+    let finalOrder = rest.order;
 
-    // If category changed, recalculate categoryOrder for new category
+    // If category changed, recalculate order for new category
     if (existing.category !== rest.category) {
         // Reorder old category
-        await reorderCategoryAfterDelete(existing.category, existing.categoryOrder);
-        // Assign new categoryOrder in new category
-        const maxCategoryOrder = await getMaxCategoryOrder(rest.category);
-        finalCategoryOrder = maxCategoryOrder + 1;
+        await reorderCategoryAfterDelete(existing.category, existing.order);
+        // Assign new order at end of new category
+        const maxOrder = await getMaxOrderInCategory(rest.category);
+        finalOrder = maxOrder + 1;
     }
 
-    const conflict = await checkOrderConflict(rest.order, _id);
-    let finalOrder = rest.order;
-    let orderAdjusted = false;
-
-    if (conflict) {
-        finalOrder = await getNextAvailableOrder(rest.order);
-        orderAdjusted = true;
-    }
-
-    const finalDoc = { ...rest, order: finalOrder, categoryOrder: finalCategoryOrder };
+    const finalDoc = { ...rest, order: finalOrder };
     await collection().updateOne({ _id: new ObjectId(_id) }, { $set: finalDoc });
 
     return {
         ...doc,
         order: finalOrder,
-        categoryOrder: finalCategoryOrder,
-        _meta: orderAdjusted ? { orderAdjusted: true, originalOrder: rest.order, newOrder: finalOrder } : undefined
     };
 }
 
 export async function deleteSkill(id: string) {
-    // Get the skill before deleting to know its category and categoryOrder
+    // Get the skill before deleting to know its category and order
     const skill = await collection().findOne({ _id: new ObjectId(id) });
     if (!skill) {
         throw new Error('Skill not found');
@@ -131,10 +93,10 @@ export async function deleteSkill(id: string) {
     await collection().deleteOne({ _id: new ObjectId(id) });
 
     // Reorder remaining skills in the same category
-    await reorderCategoryAfterDelete(skill.category, skill.categoryOrder);
+    await reorderCategoryAfterDelete(skill.category, skill.order);
 }
 
-export async function reorderSkills(items: Array<{ id: string; order?: number; categoryOrder?: number }>) {
+export async function reorderSkills(items: Array<{ id: string; order: number }>) {
     // Validate all IDs exist first
     const ids = items.map(item => new ObjectId(item.id));
     const existingSkills = await collection().find({ _id: { $in: ids } }).toArray();
@@ -143,23 +105,15 @@ export async function reorderSkills(items: Array<{ id: string; order?: number; c
         throw new Error('One or more skill IDs not found');
     }
 
-    const bulkOps = items.map(item => {
-        const updateFields: Record<string, number> = {};
-        if (item.order !== undefined) {
-            updateFields.order = item.order;
+    const bulkOps = items.map(item => ({
+        updateOne: {
+            filter: { _id: new ObjectId(item.id) },
+            update: { $set: { order: item.order } }
         }
-        if (item.categoryOrder !== undefined) {
-            updateFields.categoryOrder = item.categoryOrder;
-        }
-        return {
-            updateOne: {
-                filter: { _id: new ObjectId(item.id) },
-                update: { $set: updateFields }
-            }
-        };
-    });
+    }));
 
     await collection().bulkWrite(bulkOps);
 
     return listSkills();
 }
+

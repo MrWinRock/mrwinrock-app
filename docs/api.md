@@ -165,13 +165,11 @@ Skill object:
   "category"?: string,
   "icon"?: string (url),
   "order": number,
-  "categoryOrder": number,
   "_id"?: string
 }
 ```
 
-- `order`: Global display order across all skills
-- `categoryOrder`: Order within the skill's category (for grouping skills by category)
+- `order`: Order within the skill's category (1-based, auto-maintained)
 
 Auth:
 
@@ -180,7 +178,7 @@ Auth:
 
 ### GET /{base}/skills
 
-List all skills grouped by category. Within each category, skills are ordered by categoryOrder, order, name.
+List all skills grouped by category. Within each category, skills are ordered by order, name.
 
 Response 200:
 
@@ -194,8 +192,7 @@ Response 200:
         "name": "JavaScript",
         "category": "programming",
         "icon": "https://...",
-        "order": 1,
-        "categoryOrder": 1
+        "order": 1
       }
     ],
     "web": [
@@ -203,8 +200,13 @@ Response 200:
         "_id": "507f1f77bcf86cd799439012",
         "name": "React",
         "category": "web",
-        "order": 2,
-        "categoryOrder": 1
+        "order": 1
+      },
+      {
+        "_id": "507f1f77bcf86cd799439013",
+        "name": "Next.js",
+        "category": "web",
+        "order": 2
       }
     ],
     "uncategorized": [...]
@@ -216,9 +218,7 @@ Note: Skills without a category are grouped under `"uncategorized"`.
 
 ### POST /{base}/skills
 
-Create a skill. Both `order` and `categoryOrder` are auto-assigned:
-- `order` = max(order) + 1 (global)
-- `categoryOrder` = max(categoryOrder within same category) + 1
+Create a skill. The `order` field is auto-assigned as the next order in the category.
 
 Request body (validated by CreateSkillSchema):
 
@@ -230,7 +230,7 @@ Request body (validated by CreateSkillSchema):
 }
 ```
 
-Note: The `order` and `categoryOrder` fields are NOT accepted in the request body. They will be automatically assigned.
+Note: The `order` field is NOT accepted in the request body. It will be automatically assigned.
 
 Success 201:
 
@@ -249,8 +249,8 @@ Validation error 400:
 Update a skill by id (24-char hex).
 
 **Category change behavior:** When a skill's category is changed:
-1. The old category is reordered (skills after the moved one have their `categoryOrder` decremented)
-2. The skill is assigned a new `categoryOrder` at the end of the new category
+1. The old category is reordered (skills after the moved one have their `order` decremented)
+2. The skill is assigned a new `order` at the end of the new category
 
 Path param:
 
@@ -263,28 +263,15 @@ Request body (SkillSchema):
   "name": string,
   "category"?: string,
   "icon"?: string (url),
-  "order": number,
-  "categoryOrder": number
+  "order": number
 }
 ```
 
 Success 200:
 
 ```json
-{
-  "ok": true,
-  "data": Skill & {
-    "_id": string,
-    "_meta"?: {
-      "orderAdjusted": true,
-      "originalOrder": number,
-      "newOrder": number
-    }
-  }
-}
+{ "ok": true, "data": Skill & { "_id": string } }
 ```
-
-The `_meta` field appears only when the specified order was already in use and was automatically incremented to the next available order.
 
 Errors:
 
@@ -296,7 +283,7 @@ Errors:
 
 Delete a skill by id.
 
-**Auto-reorder behavior:** When a skill is deleted, all skills in the same category with a higher `categoryOrder` are decremented by 1 to maintain contiguous ordering.
+**Auto-reorder behavior:** When a skill is deleted, all skills in the same category with a higher `order` are decremented by 1 to maintain contiguous ordering.
 
 Path param:
 
@@ -315,15 +302,15 @@ Errors:
 
 ### PATCH /{base}/skills/reorder
 
-Bulk reorder skills. Updates `order` and/or `categoryOrder` fields for multiple skills in a single atomic operation.
+Bulk reorder skills within their categories.
 
 Request body:
 
 ```json
 {
   "items": [
-    { "id": "507f1f77bcf86cd799439011", "order": 0, "categoryOrder": 1 },
-    { "id": "507f1f77bcf86cd799439012", "categoryOrder": 2 },
+    { "id": "507f1f77bcf86cd799439011", "order": 1 },
+    { "id": "507f1f77bcf86cd799439012", "order": 2 },
     { "id": "507f1f77bcf86cd799439013", "order": 3 }
   ]
 }
@@ -331,25 +318,21 @@ Request body:
 
 - `items`: array of objects with:
   - `id` (required): 24-char hex string
-  - `order` (optional): non-negative integer for global order
-  - `categoryOrder` (optional): non-negative integer for order within category
-  - At least one of `order` or `categoryOrder` must be provided
+  - `order` (required): non-negative integer
 
 Success 200:
 
 ```json
-{ "ok": true, "data": Skill[] }
+{ "ok": true, "data": { ... } }
 ```
 
-Returns the complete list of skills in the new order.
+Returns the complete list of skills grouped by category.
 
 Errors:
 
-- 400: `{ "ok": false, "error": "Expected { items: Array<{ id, order?, categoryOrder? }> }" }`
+- 400: `{ "ok": false, "error": "Expected { items: Array<{ id, order }> }" }`
 - 400: `{ "ok": false, "error": "Each item must have a valid 24-character id" }`
 - 400: `{ "ok": false, "error": "order must be a non-negative integer" }`
-- 400: `{ "ok": false, "error": "categoryOrder must be a non-negative integer" }`
-- 400: `{ "ok": false, "error": "Each item must have at least order or categoryOrder" }`
 - 400: `{ "ok": false, "error": "One or more skill IDs not found" }`
 
 ---
