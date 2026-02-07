@@ -15,9 +15,9 @@ const requestStore = new Map<string, RequestRecord>();
 
 // Default configuration
 const DEFAULT_CONFIG: Required<RateLimitConfig> = {
-  rps: 10,
-  rpm: 1000,
-  daily: 50000,
+  rps: 50,
+  rpm: 1800,
+  daily: 100000,
 };
 
 /**

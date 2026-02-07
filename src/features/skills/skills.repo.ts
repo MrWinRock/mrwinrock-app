@@ -24,7 +24,7 @@ function getCategoryOrderFlag(category: string): number {
 }
 
 async function getMaxOrderInCategory(category: string | undefined): Promise<number> {
-    const query = category ? { category } : { category: { $exists: false } };
+    const query = category != null ? { category } : { category: { $exists: false } };
     const result = await collection()
         .find(query)
         .sort({ order: -1 })
@@ -34,7 +34,7 @@ async function getMaxOrderInCategory(category: string | undefined): Promise<numb
 }
 
 async function reorderCategoryAfterDelete(category: string | undefined, deletedOrder: number) {
-    const query = category ? { category } : { category: { $exists: false } };
+    const query = category != null ? { category } : { category: { $exists: false } };
     // Decrement order for all skills after the deleted one in same category
     await collection().updateMany(
         { ...query, order: { $gt: deletedOrder } },
@@ -48,7 +48,7 @@ export async function listSkills() {
     // Group skills by category with order_flag
     const grouped: Record<string, { order_flag: number; skills: typeof skills }> = {};
     for (const skill of skills) {
-        const categoryKey = skill.category || 'uncategorized';
+        const categoryKey = skill.category ?? 'uncategorized';
         if (!grouped[categoryKey]) {
             grouped[categoryKey] = {
                 order_flag: getCategoryOrderFlag(categoryKey),

@@ -169,7 +169,7 @@ Skill object:
 }
 ```
 
-- `order`: Order within the skill's category (1-based, auto-maintained)
+- `order`: Order within the skill's category (non-negative integer, auto-maintained)
 
 Auth:
 
@@ -187,7 +187,7 @@ Response 200:
   "ok": true,
   "data": {
     "programming": {
-      "order_flag": 0,
+      "order_flag": 1,
       "skills": [
         {
           "_id": "507f1f77bcf86cd799439011",
@@ -199,7 +199,7 @@ Response 200:
       ]
     },
     "web": {
-      "order_flag": 1,
+      "order_flag": 2,
       "skills": [
         {
           "_id": "507f1f77bcf86cd799439012",

@@ -64,8 +64,8 @@ The rate limits can be customized by modifying the middleware configuration in `
 
 ```typescript
 app.use('/api/*', rateLimit({
-  rps: 10,      // requests per second
-  rpm: 100,     // requests per minute
-  daily: 50000  // requests per day
+  rps: 50,      // requests per second
+  rpm: 1800,    // requests per minute
+  daily: 100000 // requests per day
 }));
 ```
