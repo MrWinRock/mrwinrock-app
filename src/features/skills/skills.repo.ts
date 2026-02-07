@@ -89,7 +89,7 @@ export async function updateSkill(doc: SkillInput & { _id: string }) {
     // Get existing skill to check if category changed
     const existing = await collection().findOne({ _id: new ObjectId(_id) });
     if (!existing) {
-        throw new Error('Skill not found');
+        return null;
     }
 
     let finalOrder = rest.order;
@@ -134,12 +134,38 @@ export async function reorderSkills(items: Array<{ id: string; order: number }>)
         throw new Error('One or more skill IDs not found');
     }
 
-    const bulkOps = items.map(item => ({
+    // Create a map of id -> requested order for sorting
+    const orderMap = new Map(items.map(item => [item.id, item.order]));
+
+    // Group skills by category
+    const byCategory = new Map<string | undefined, typeof existingSkills>();
+    for (const skill of existingSkills) {
+        const cat = skill.category;
+        if (!byCategory.has(cat)) byCategory.set(cat, []);
+        byCategory.get(cat)!.push(skill);
+    }
+
+    // Build bulk ops with contiguous orders per category
+    const bulkOps: Array<{
         updateOne: {
-            filter: { _id: new ObjectId(item.id) },
-            update: { $set: { order: item.order } }
-        }
-    }));
+            filter: { _id: ObjectId };
+            update: { $set: { order: number } };
+        };
+    }> = [];
+
+    for (const [, skills] of byCategory) {
+        // Sort by the requested order
+        skills.sort((a, b) => orderMap.get(a._id.toString())! - orderMap.get(b._id.toString())!);
+        // Assign contiguous orders starting from 1
+        skills.forEach((skill, idx) => {
+            bulkOps.push({
+                updateOne: {
+                    filter: { _id: skill._id },
+                    update: { $set: { order: idx + 1 } }
+                }
+            });
+        });
+    }
 
     await collection().bulkWrite(bulkOps);
 
