@@ -107,7 +107,7 @@ skills.patch('/reorder', requireApiKey(), async (c) => {
             return c.json({ ok: false, error: 'Each item must have a valid 24-character id' }, 400);
         }
         if (typeof item.order !== 'number' || item.order < 0 || !Number.isInteger(item.order)) {
-            return c.json({ ok: false, error: 'Each item must have a non-negative integer order' }, 400);
+            return c.json({ ok: false, error: 'order must be a non-negative integer' }, 400);
         }
     }
 

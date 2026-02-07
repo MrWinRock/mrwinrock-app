@@ -11,3 +11,4 @@ export const CreateSkillSchema = SkillSchema.omit({ order: true });
 
 export type SkillInput = z.infer<typeof SkillSchema>;
 export type CreateSkillInput = z.infer<typeof CreateSkillSchema>;
+
