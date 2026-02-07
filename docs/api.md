@@ -223,19 +223,19 @@ Response 200:
 
 | order_flag | category               |
 |------------|------------------------|
-| 0          | programming            |
-| 1          | web                    |
-| 2          | mobile                 |
-| 3          | backend                |
-| 4          | databases              |
-| 5          | cloud                  |
-| 6          | devtools               |
-| 7          | game                   |
-| 8          | design                 |
-| 9          | other                  |
-| 10+        | uncategorized / unknown|
+| 1          | programming            |
+| 2          | web                    |
+| 3          | mobile                 |
+| 4          | backend                |
+| 5          | databases              |
+| 6          | cloud                  |
+| 7          | devtools               |
+| 8          | game                   |
+| 9          | design                 |
+| 10         | other                  |
+| 11+        | uncategorized / unknown|
 
-Note: Skills without a category are grouped under `"uncategorized"` with order_flag = 10.
+Note: Skills without a category are grouped under `"uncategorized"` with order_flag = 11.
 
 ### POST /{base}/skills
 

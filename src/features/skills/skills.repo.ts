@@ -20,7 +20,7 @@ const CATEGORY_ORDER = [
 
 function getCategoryOrderFlag(category: string): number {
     const index = CATEGORY_ORDER.indexOf(category as typeof CATEGORY_ORDER[number]);
-    return index >= 0 ? index : CATEGORY_ORDER.length; // Unknown categories go to the end
+    return index >= 0 ? index + 1 : CATEGORY_ORDER.length + 1; // Unknown categories go to the end
 }
 
 async function getMaxOrderInCategory(category: string | undefined): Promise<number> {
