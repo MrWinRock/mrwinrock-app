@@ -89,6 +89,18 @@ app.use('/api/*', async (c, next) => {
   await next();
 });
 
+// CORS for root-level routes
+app.use('/', cors({
+  origin: (origin) => {
+    if (!origin) return '*';
+    return ALLOW.has(origin) ? origin : '';
+  },
+  credentials: false,
+  allowMethods: ['GET', 'OPTIONS'],
+  allowHeaders: ['Content-Type'],
+  maxAge: 86400
+}));
+
 app.get('/', c => c.json({ ok: true, message: 'Welcome to MrWinRock API' }));
 
 app.get('/health', async c => {
@@ -97,17 +109,6 @@ app.get('/health', async c => {
     await db.command({ ping: 1 });
     const uptime = typeof process !== 'undefined' && process.uptime ? process.uptime() : null;
     return c.json({ ok: true, status: 'live', method: "GET", uptime, timestamp: new Date().toISOString() });
-  } catch (e) {
-    return c.json({ ok: false, error: (e as Error).message }, 500);
-  }
-});
-
-app.post('/health', async c => {
-  try {
-    const db = await connectMongo();
-    await db.command({ ping: 1 });
-    const uptime = typeof process !== 'undefined' && process.uptime ? process.uptime() : null;
-    return c.json({ ok: true, status: 'live', method: "POST", uptime, timestamp: new Date().toISOString() });
   } catch (e) {
     return c.json({ ok: false, error: (e as Error).message }, 500);
   }
