@@ -89,8 +89,7 @@ app.use('/api/*', async (c, next) => {
   await next();
 });
 
-// CORS for root-level routes
-app.use('/', cors({
+const rootCors = cors({
   origin: (origin) => {
     if (!origin) return '*';
     return ALLOW.has(origin) ? origin : '';
@@ -99,7 +98,10 @@ app.use('/', cors({
   allowMethods: ['GET', 'OPTIONS'],
   allowHeaders: ['Content-Type'],
   maxAge: 86400
-}));
+});
+
+app.use('/health', rootCors);
+app.use('/fish', rootCors);
 
 app.get('/', c => c.json({ ok: true, message: 'Welcome to MrWinRock API' }));
 
