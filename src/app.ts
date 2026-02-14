@@ -27,7 +27,8 @@ app.group('/api', app => app
   .use(cors({
     origin: (origin) => {
       if (!origin) return true;
-      return ALLOW.has(origin);
+      const originStr = typeof origin === 'string' ? origin : origin.toString();
+      return ALLOW.has(originStr);
     },
     credentials: false,
     methods: ['GET', 'OPTIONS'],
@@ -116,7 +117,8 @@ app.group('/admin', app => app
 const rootCors = cors({
   origin: (origin) => {
     if (!origin) return true;
-    return ALLOW.has(origin);
+    const originStr = typeof origin === 'string' ? origin : origin.toString();
+    return ALLOW.has(originStr);
   },
   credentials: false,
   methods: ['GET', 'OPTIONS'],

@@ -6,10 +6,10 @@ import contact from '../features/contact/contact.routes.ts';
 import health from './health.routes.ts';
 
 const routes = new Elysia()
-    .use(skills.prefix('/skills'))
-    .use(projects.prefix('/projects'))
-    .use(experience.prefix('/experience'))
-    .use(contact.prefix('/contact'))
-    .use(health.prefix('/health'));
+    .group('/skills', app => app.use(skills))
+    .group('/projects', app => app.use(projects))
+    .group('/experience', app => app.use(experience))
+    .group('/contact', app => app.use(contact))
+    .group('/health', app => app.use(health));
 
 export default routes;

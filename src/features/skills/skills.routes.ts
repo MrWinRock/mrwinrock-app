@@ -116,12 +116,13 @@ skills.put('/:id', async ({ params: { id }, request, set }) => {
 });
 
 skills.patch('/reorder', async ({ body, set }) => {
-    if (!body.items || !Array.isArray(body.items)) {
+    const bodyData = body as any;
+    if (!bodyData.items || !Array.isArray(bodyData.items)) {
         set.status = 400;
         return { ok: false, error: 'Expected { items: Array<{ id, order }> }' };
     }
 
-    for (const item of body.items) {
+    for (const item of bodyData.items) {
         if (!item.id || typeof item.id !== 'string' || item.id.length !== 24) {
             set.status = 400;
             return { ok: false, error: 'Each item must have a valid 24-character id' };
@@ -133,7 +134,7 @@ skills.patch('/reorder', async ({ body, set }) => {
     }
 
     try {
-        const data = await reorderSkills(body.items);
+        const data = await reorderSkills(bodyData.items);
         return { ok: true, data };
     } catch (error) {
         set.status = 400;
