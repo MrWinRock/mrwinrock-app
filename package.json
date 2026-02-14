@@ -11,9 +11,10 @@
     "@types/bun": "latest"
   },
   "dependencies": {
+    "@elysiajs/cors": "^1.0.0",
     "@google-cloud/storage": "^7.17.3",
     "dotenv": "^17.2.3",
-    "hono": "^4.10.6",
+    "elysia": "^1.0.0",
     "jose": "^6.1.2",
     "mongodb": "^6.21.0",
     "resend": "^6.5.2",
