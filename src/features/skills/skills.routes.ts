@@ -9,6 +9,15 @@ const skills = new Elysia();
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_FILE_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'];
 
+interface ReorderItem {
+    id: string;
+    order: number;
+}
+
+interface ReorderBody {
+    items: ReorderItem[];
+}
+
 skills.get('/', async () => {
     const data = await listSkills();
     return { ok: true, data };
@@ -116,7 +125,7 @@ skills.put('/:id', async ({ params: { id }, request, set }) => {
 });
 
 skills.patch('/reorder', async ({ body, set }) => {
-    const bodyData = body as any;
+    const bodyData = body as ReorderBody;
     if (!bodyData.items || !Array.isArray(bodyData.items)) {
         set.status = 400;
         return { ok: false, error: 'Expected { items: Array<{ id, order }> }' };

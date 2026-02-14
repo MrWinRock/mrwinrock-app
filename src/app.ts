@@ -1,4 +1,4 @@
-import { Elysia } from 'elysia'
+import { Elysia, type Context } from 'elysia'
 import { cors } from '@elysiajs/cors'
 import { connectMongo } from './db/mongo'
 import routes from './routes'
@@ -43,25 +43,12 @@ app.group('/api', app => app
       try { return new URL(url).pathname } catch { return url }
     })();
     
-    return ({ set }: any) => {
+    return ({ set }: Context) => {
       const ms = Date.now() - start;
       console.log(`[API] ${method} ${path} -> ${set.status || 200} ${ms}ms`);
     };
   })
-  .derive(async ({ request, set }) => {
-    // Rate limiting
-    const rateLimitHandler = rateLimit();
-    const result = await rateLimitHandler({ request, set });
-    if (result) {
-      return { rateLimitError: result };
-    }
-    return {};
-  })
-  .onBeforeHandle(({ rateLimitError }) => {
-    if (rateLimitError) {
-      return rateLimitError;
-    }
-  })
+  .onBeforeHandle(rateLimit())
   .onBeforeHandle(({ request, set }) => {
     // Method restriction - GET only
     if (request.method !== 'GET') {
@@ -75,7 +62,7 @@ app.group('/api', app => app
 // CORS for /admin/* routes
 const jwks = createRemoteJWKSet(new URL(`https://${env.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`));
 
-const requireAccess = async ({ request, set }: any) => {
+const requireAccess = async ({ request, set }: Context) => {
   // Development: allow x-api-key as alternative auth
   if (env.NODE_ENV === 'development') {
     const apiKey = request.headers.get('x-api-key');

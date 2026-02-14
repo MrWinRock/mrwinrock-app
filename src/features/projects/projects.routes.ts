@@ -5,6 +5,15 @@ import { createProject, listProjects, updateProject, deleteProject, reorderProje
 
 const projects = new Elysia();
 
+interface ReorderItem {
+    id: string;
+    order: number;
+}
+
+interface ReorderBody {
+    items: ReorderItem[];
+}
+
 projects.get('/', async () => {
     const data = await listProjects();
     return { ok: true, data };
@@ -40,7 +49,7 @@ projects.put('/:id', async ({ params: { id }, body, set }) => {
 });
 
 projects.patch('/reorder', async ({ body, set }) => {
-    const bodyData = body as any;
+    const bodyData = body as ReorderBody;
     if (!bodyData.items || !Array.isArray(bodyData.items)) {
         set.status = 400;
         return { ok: false, error: 'Expected { items: Array<{ id, order }> }' };

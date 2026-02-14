@@ -1,10 +1,11 @@
+import { Elysia, type Context } from 'elysia';
 import { env } from '../config/env';
 
 export function requireApiKey() {
     const key = env.API_KEY;
     const strict = env.NODE_ENV !== 'development';
 
-    return async ({ request, set }: any) => {
+    return async ({ request, set }: Context) => {
         if (!key) {
             if (strict) {
                 set.status = 401;

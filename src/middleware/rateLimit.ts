@@ -1,3 +1,5 @@
+import type { Context } from 'elysia';
+
 interface RateLimitConfig {
   rps?: number; // Requests per second
   rpm?: number; // Requests per minute
@@ -94,7 +96,7 @@ function calculateResetTime(timestamps: number[], windowMs: number, now: number)
 export function rateLimit(config: RateLimitConfig = {}) {
   const limits = { ...DEFAULT_CONFIG, ...config };
 
-  return async ({ request, set }: any) => {
+  return async ({ request, set }: Context) => {
     const now = Date.now();
     const clientId = getClientId(request);
 
