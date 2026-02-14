@@ -35,18 +35,16 @@ app.group('/api', app => app
     allowedHeaders: ['Content-Type'],
     maxAge: 86400
   }))
-  .onBeforeHandle(async ({ request }) => {
+  .derive(({ request }) => {
     const start = Date.now();
-    const method = request.method;
-    const url = request.url;
+    return { startTime: start, requestMethod: request.method, requestUrl: request.url };
+  })
+  .onAfterHandle(({ set, startTime, requestMethod, requestUrl }) => {
+    const ms = Date.now() - (startTime || 0);
     const path = (() => {
-      try { return new URL(url).pathname } catch { return url }
+      try { return new URL(requestUrl).pathname } catch { return requestUrl }
     })();
-    
-    return ({ set }: Context) => {
-      const ms = Date.now() - start;
-      console.log(`[API] ${method} ${path} -> ${set.status || 200} ${ms}ms`);
-    };
+    console.log(`[API] ${requestMethod} ${path} -> ${set.status || 200} ${ms}ms`);
   })
   .onBeforeHandle(rateLimit())
   .onBeforeHandle(({ request, set }) => {
