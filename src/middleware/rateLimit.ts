@@ -1,5 +1,3 @@
-import type { Context, Next } from 'hono';
-
 interface RateLimitConfig {
   rps?: number; // Requests per second
   rpm?: number; // Requests per minute
@@ -47,10 +45,10 @@ function isValidIp(ip: string): boolean {
  * Falls back to 'unknown' if IP cannot be determined - all unknown clients share the same rate limit
  * This is acceptable as it provides a baseline protection even for clients without IP headers
  */
-function getClientId(c: Context): string {
+function getClientId(request: Request): string {
   if (TRUST_PROXY) {
     // Try to get IP from various headers (common in proxy/load balancer setups)
-    const forwardedFor = c.req.header('x-forwarded-for');
+    const forwardedFor = request.headers.get('x-forwarded-for');
     if (forwardedFor) {
       const candidate = forwardedFor.split(',')[0]?.trim();
       if (candidate && isValidIp(candidate)) {
@@ -58,7 +56,7 @@ function getClientId(c: Context): string {
       }
     }
 
-    const realIp = c.req.header('x-real-ip');
+    const realIp = request.headers.get('x-real-ip');
     if (realIp && isValidIp(realIp.trim())) {
       return realIp.trim();
     }
@@ -96,9 +94,9 @@ function calculateResetTime(timestamps: number[], windowMs: number, now: number)
 export function rateLimit(config: RateLimitConfig = {}) {
   const limits = { ...DEFAULT_CONFIG, ...config };
 
-  return async (c: Context, next: Next) => {
+  return async ({ request, set }: any) => {
     const now = Date.now();
-    const clientId = getClientId(c);
+    const clientId = getClientId(request);
 
     // Get or create request record for this client
     let record = requestStore.get(clientId);
@@ -169,27 +167,26 @@ export function rateLimit(config: RateLimitConfig = {}) {
 
     if (limitExceeded) {
       // Set rate limit headers
-      c.header('X-RateLimit-Limit', String(limit));
-      c.header('X-RateLimit-Remaining', '0');
-      c.header('X-RateLimit-Reset', String(resetTime));
-      c.header('Retry-After', String(retryAfter || 1));
+      set.headers['X-RateLimit-Limit'] = String(limit);
+      set.headers['X-RateLimit-Remaining'] = '0';
+      set.headers['X-RateLimit-Reset'] = String(resetTime);
+      set.headers['Retry-After'] = String(retryAfter || 1);
 
-      return c.json({
+      set.status = 429;
+      return {
         ok: false,
         status: 'Too Many Requests',
         message: `Rate limit exceeded: ${limitType}`,
-      }, 429);
+      };
     }
 
     // Record this request
     record.timestamps.push(now);
 
     // Set rate limit headers for successful requests
-    c.header('X-RateLimit-Limit', String(limits.daily));
-    c.header('X-RateLimit-Remaining', String(remaining));
-    c.header('X-RateLimit-Reset', String(resetTime));
-
-    await next();
+    set.headers['X-RateLimit-Limit'] = String(limits.daily);
+    set.headers['X-RateLimit-Remaining'] = String(remaining);
+    set.headers['X-RateLimit-Reset'] = String(resetTime);
   };
 }
 

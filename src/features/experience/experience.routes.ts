@@ -1,21 +1,26 @@
-import { Hono } from 'hono';
+import { Elysia } from 'elysia';
 import { ExperienceSchema } from './experience.schema';
 import { requireApiKey } from '../../middleware/apiKey.ts';
 import { createExperience, listExperience } from './experience.repo';
 
-const experience = new Hono();
+const experience = new Elysia();
 
-experience.get('/', async (c) => {
+experience.get('/', async () => {
     const data = await listExperience();
-    return c.json({ ok: true, data });
+    return { ok: true, data };
 });
 
-experience.post('/', requireApiKey(), async (c) => {
-    const body = await c.req.json().catch(() => ({}));
+experience.post('/', async ({ body, set }) => {
     const parsed = ExperienceSchema.safeParse(body);
-    if (!parsed.success) return c.json({ ok: false, error: parsed.error.flatten() }, 400);
+    if (!parsed.success) {
+        set.status = 400;
+        return { ok: false, error: parsed.error.flatten() };
+    }
     const saved = await createExperience(parsed.data);
-    return c.json({ ok: true, data: saved }, 201);
+    set.status = 201;
+    return { ok: true, data: saved };
+}, {
+    beforeHandle: requireApiKey()
 });
 
 export default experience;

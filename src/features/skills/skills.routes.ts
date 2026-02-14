@@ -1,17 +1,17 @@
-import { Hono } from 'hono';
+import { Elysia } from 'elysia';
 import { SkillSchema, CreateSkillSchema } from './skills.schema';
 import { requireApiKey } from '../../middleware/apiKey.ts';
 import { createSkill, listSkills, updateSkill, deleteSkill, reorderSkills } from './skills.repo';
 import { StorageService } from '../../services/storage';
 
-const skills = new Hono();
+const skills = new Elysia();
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_FILE_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'];
 
-skills.get('/', async (c) => {
+skills.get('/', async () => {
     const data = await listSkills();
-    return c.json({ ok: true, data });
+    return { ok: true, data };
 });
 
 type SkillRequestBody = {
@@ -22,13 +22,13 @@ type SkillRequestBody = {
 };
 
 
-async function processSkillBody(c: any): Promise<Partial<SkillRequestBody>> {
-    const contentType = c.req.header('content-type');
+async function processSkillBody(request: Request): Promise<Partial<SkillRequestBody>> {
+    const contentType = request.headers.get('content-type');
     let body: Partial<SkillRequestBody> = {};
 
     if (contentType?.includes('multipart/form-data')) {
-        const formData = await c.req.parseBody();
-        body = { ...formData } as unknown as Partial<SkillRequestBody>;
+        const formData = await request.formData();
+        body = Object.fromEntries(formData.entries()) as unknown as Partial<SkillRequestBody>;
 
         // Convert order to number if it's a string
         if (typeof body.order === 'string') {
@@ -58,78 +58,105 @@ async function processSkillBody(c: any): Promise<Partial<SkillRequestBody>> {
             }
         }
     } else {
-        body = await c.req.json().catch(() => ({})) as SkillRequestBody;
+        try {
+            body = await request.json() as SkillRequestBody;
+        } catch {
+            body = {};
+        }
     }
     return body;
 }
 
-skills.post('/', requireApiKey(), async (c) => {
+skills.post('/', async ({ request, set }) => {
     try {
-        const body = await processSkillBody(c);
+        const body = await processSkillBody(request);
         const parsed = CreateSkillSchema.safeParse(body);
-        if (!parsed.success) return c.json({ ok: false, error: parsed.error.flatten() }, 400);
+        if (!parsed.success) {
+            set.status = 400;
+            return { ok: false, error: parsed.error.flatten() };
+        }
         const saved = await createSkill(parsed.data);
-        return c.json({ ok: true, data: saved }, 201);
+        set.status = 201;
+        return { ok: true, data: saved };
     } catch (error: any) {
         const status = error.message?.startsWith('Failed to upload') ? 500 : 400;
-        return c.json({ ok: false, error: error.message || 'Invalid request' }, status);
+        set.status = status;
+        return { ok: false, error: error.message || 'Invalid request' };
     }
+}, {
+    beforeHandle: requireApiKey()
 });
 
-skills.put('/:id', requireApiKey(), async (c) => {
-    const id = c.req.param('id');
+skills.put('/:id', async ({ params: { id }, request, set }) => {
     if (!id || id.length !== 24) {
-        return c.json({ ok: false, error: 'Invalid id' }, 400);
+        set.status = 400;
+        return { ok: false, error: 'Invalid id' };
     }
 
     try {
-        const body = await processSkillBody(c);
+        const body = await processSkillBody(request);
         const parsed = SkillSchema.safeParse(body);
-        if (!parsed.success) return c.json({ ok: false, error: parsed.error.flatten() }, 400);
+        if (!parsed.success) {
+            set.status = 400;
+            return { ok: false, error: parsed.error.flatten() };
+        }
         const updated = await updateSkill({ _id: id, ...parsed.data });
-        if (!updated) return c.json({ ok: false, error: 'Skill not found' }, 404);
-        return c.json({ ok: true, data: updated }, 200);
+        if (!updated) {
+            set.status = 404;
+            return { ok: false, error: 'Skill not found' };
+        }
+        return { ok: true, data: updated };
     } catch (error: any) {
         const status = error.message?.startsWith('Failed to upload') ? 500 : 400;
-        return c.json({ ok: false, error: error.message || 'Invalid request' }, status);
+        set.status = status;
+        return { ok: false, error: error.message || 'Invalid request' };
     }
+}, {
+    beforeHandle: requireApiKey()
 });
 
-skills.patch('/reorder', requireApiKey(), async (c) => {
-    const body = await c.req.json().catch(() => ({}));
-
+skills.patch('/reorder', async ({ body, set }) => {
     if (!body.items || !Array.isArray(body.items)) {
-        return c.json({ ok: false, error: 'Expected { items: Array<{ id, order }> }' }, 400);
+        set.status = 400;
+        return { ok: false, error: 'Expected { items: Array<{ id, order }> }' };
     }
 
     for (const item of body.items) {
         if (!item.id || typeof item.id !== 'string' || item.id.length !== 24) {
-            return c.json({ ok: false, error: 'Each item must have a valid 24-character id' }, 400);
+            set.status = 400;
+            return { ok: false, error: 'Each item must have a valid 24-character id' };
         }
         if (typeof item.order !== 'number' || item.order < 0 || !Number.isInteger(item.order)) {
-            return c.json({ ok: false, error: 'order must be a non-negative integer' }, 400);
+            set.status = 400;
+            return { ok: false, error: 'order must be a non-negative integer' };
         }
     }
 
     try {
         const data = await reorderSkills(body.items);
-        return c.json({ ok: true, data }, 200);
+        return { ok: true, data };
     } catch (error) {
-        return c.json({ ok: false, error: error instanceof Error ? error.message : 'Reorder failed' }, 400);
+        set.status = 400;
+        return { ok: false, error: error instanceof Error ? error.message : 'Reorder failed' };
     }
+}, {
+    beforeHandle: requireApiKey()
 });
 
-skills.delete('/:id', requireApiKey(), async (c) => {
-    const id = c.req.param('id');
+skills.delete('/:id', async ({ params: { id }, set }) => {
     if (!id || id.length !== 24) {
-        return c.json({ ok: false, error: 'Invalid id' }, 400);
+        set.status = 400;
+        return { ok: false, error: 'Invalid id' };
     }
     try {
         await deleteSkill(id);
-        return c.json({ ok: true }, 200);
+        return { ok: true };
     } catch {
-        return c.json({ ok: false, error: 'Skill not found' }, 404);
+        set.status = 404;
+        return { ok: false, error: 'Skill not found' };
     }
+}, {
+    beforeHandle: requireApiKey()
 });
 
 export default skills;
