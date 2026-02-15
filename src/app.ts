@@ -5,8 +5,10 @@ import routes from './routes'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { env } from './config/env'
 import { rateLimit } from './middleware/rateLimit'
+import { requestLogger } from './middleware/logger'
 
 const app = new Elysia()
+  .use(requestLogger())
 
 const PUBLIC_ORIGINS = [
   // Development
@@ -35,17 +37,6 @@ app.group('/api', app => app
     allowedHeaders: ['Content-Type'],
     maxAge: 86400
   }))
-  .derive(({ request }) => {
-    const start = Date.now();
-    return { startTime: start, requestMethod: request.method, requestUrl: request.url };
-  })
-  .onAfterHandle(({ set, startTime, requestMethod, requestUrl }) => {
-    const ms = Date.now() - (startTime || 0);
-    const path = (() => {
-      try { return new URL(requestUrl).pathname } catch { return requestUrl }
-    })();
-    console.log(`[API] ${requestMethod} ${path} -> ${set.status || 200} ${ms}ms`);
-  })
   .onBeforeHandle(rateLimit())
   .onBeforeHandle(({ request, set }) => {
     // Method restriction - GET only
@@ -97,21 +88,6 @@ app.group('/admin', app => app
   .onBeforeHandle(requireAccess)
   .use(routes)
 );
-
-// Root CORS
-const rootCors = cors({
-  origin: (origin) => {
-    if (!origin) return true;
-    const originStr = typeof origin === 'string' ? origin : origin.toString();
-    return ALLOW.has(originStr);
-  },
-  credentials: false,
-  methods: ['GET', 'OPTIONS'],
-  allowedHeaders: ['Content-Type'],
-  maxAge: 86400
-});
-
-app.use(rootCors);
 
 app.get('/', () => ({ ok: true, message: 'Welcome to MrWinRock API' }));
 
