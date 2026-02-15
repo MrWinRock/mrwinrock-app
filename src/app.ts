@@ -1,5 +1,4 @@
 import { Elysia, type Context } from 'elysia'
-import { cors } from '@elysiajs/cors'
 import { connectMongo } from './db/mongo'
 import routes from './routes'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
@@ -24,22 +23,29 @@ const PUBLIC_ORIGINS = [
 
 const ALLOW = new Set(PUBLIC_ORIGINS);
 
+const API_CORS_METHODS = 'GET, OPTIONS';
+const API_CORS_HEADERS = 'Content-Type';
+const API_CORS_MAX_AGE = '86400';
+
 // CORS for /api/* routes
 app.group('/api', app => app
-  .use(cors({
-    origin: (origin) => {
-      if (!origin) return true;
-      const originStr = typeof origin === 'string' ? origin : origin.toString();
-      return ALLOW.has(originStr);
-    },
-    credentials: false,
-    methods: ['GET', 'OPTIONS'],
-    allowedHeaders: ['Content-Type'],
-    maxAge: 86400
-  }))
+  .onBeforeHandle(({ request, set }) => {
+    const origin = request.headers.get('origin');
+    if (origin && ALLOW.has(origin)) {
+      set.headers['access-control-allow-origin'] = origin;
+    }
+    set.headers['access-control-allow-methods'] = API_CORS_METHODS;
+    set.headers['access-control-allow-headers'] = API_CORS_HEADERS;
+    set.headers['access-control-max-age'] = API_CORS_MAX_AGE;
+    set.headers['vary'] = 'Origin';
+
+    if (request.method === 'OPTIONS') {
+      set.status = 204;
+      return '';
+    }
+  })
   .onBeforeHandle(rateLimit())
   .onBeforeHandle(({ request, set }) => {
-    // Method restriction - GET only
     if (request.method !== 'GET') {
       set.status = 405;
       return { ok: false, error: 'Method not allowed' };
