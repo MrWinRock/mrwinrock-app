@@ -1,25 +1,28 @@
-import { Hono } from 'hono';
+import { Elysia } from 'elysia';
 import { ContactSchema } from './contact.schema';
 import { sendContactEmail } from './contact.service';
 
-const contact = new Hono();
+const contact = new Elysia();
 
-contact.post('/', async (c) => {
-    const body = await c.req.json().catch(() => ({}));
+contact.post('/', async ({ body, set }) => {
     const parsed = ContactSchema.safeParse(body);
-    if (!parsed.success) return c.json({ ok: false, error: parsed.error.flatten() }, 400);
+    if (!parsed.success) {
+        set.status = 400;
+        return { ok: false, error: parsed.error.flatten() };
+    }
 
     const result = await sendContactEmail(parsed.data);
 
     if (!result.ok) {
-        return c.json({ ok: false, error: result.error }, 500);
+        set.status = 500;
+        return { ok: false, error: result.error };
     }
 
-    return c.json({
+    return {
         ok: true,
         message: result.message ?? (result.skipped ? 'Email send skipped' : 'Email sent'),
         skipped: result.skipped || undefined
-    });
+    };
 });
 
 export default contact;

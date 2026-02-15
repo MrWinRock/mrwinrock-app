@@ -1,12 +1,14 @@
-import { Hono } from 'hono'
-import { cors } from 'hono/cors'
+import { Elysia, type Context } from 'elysia'
+import { cors } from '@elysiajs/cors'
 import { connectMongo } from './db/mongo'
 import routes from './routes'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { env } from './config/env'
 import { rateLimit } from './middleware/rateLimit'
+import { requestLogger } from './middleware/logger'
 
-const app = new Hono()
+const app = new Elysia()
+  .use(requestLogger())
 
 const PUBLIC_ORIGINS = [
   // Development
@@ -22,104 +24,86 @@ const PUBLIC_ORIGINS = [
 
 const ALLOW = new Set(PUBLIC_ORIGINS);
 
-app.use('/api/*', cors({
-  origin: (origin) => {
-    if (!origin) return '*';
-    return ALLOW.has(origin) ? origin : '';
-  },
-  credentials: false,
-  allowMethods: ['GET', 'OPTIONS'],
-  allowHeaders: ['Content-Type'],
-  maxAge: 86400
-}));
+// CORS for /api/* routes
+app.group('/api', app => app
+  .use(cors({
+    origin: (origin) => {
+      if (!origin) return true;
+      const originStr = typeof origin === 'string' ? origin : origin.toString();
+      return ALLOW.has(originStr);
+    },
+    credentials: false,
+    methods: ['GET', 'OPTIONS'],
+    allowedHeaders: ['Content-Type'],
+    maxAge: 86400
+  }))
+  .onBeforeHandle(rateLimit())
+  .onBeforeHandle(({ request, set }) => {
+    // Method restriction - GET only
+    if (request.method !== 'GET') {
+      set.status = 405;
+      return { ok: false, error: 'Method not allowed' };
+    }
+  })
+  .use(routes)
+);
 
-app.use('/api/*', async (c, next) => {
-  const start = Date.now()
-  const method = c.req.method
-  const url = c.req.url
-  const path = (() => {
-    try { return new URL(url).pathname } catch { return url }
-  })()
-  await next()
-  const ms = Date.now() - start
-  console.log(`[API] ${method} ${path} -> ${c.res.status} ${ms}ms`)
-})
-
-app.use('/admin/*', cors({
-  origin: env.ADMIN_ORIGIN,
-  credentials: true,
-  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'Cf-Access-Jwt-Assertion', 'x-api-key'],
-  maxAge: 86400
-}));
-
+// CORS for /admin/* routes
 const jwks = createRemoteJWKSet(new URL(`https://${env.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`));
 
-const requireAccess = async (c: any, next: any) => {
+const requireAccess = async ({ request, set }: Context) => {
   // Development: allow x-api-key as alternative auth
   if (env.NODE_ENV === 'development') {
-    const apiKey = c.req.header('x-api-key');
+    const apiKey = request.headers.get('x-api-key');
     if (apiKey && apiKey === env.API_KEY) {
-      return next();
+      return;
     }
   }
 
   // Production: require Cloudflare Access JWT
-  const t = c.req.header('Cf-Access-Jwt-Assertion');
-  if (!t) return c.text('unauthorized', 401);
+  const t = request.headers.get('Cf-Access-Jwt-Assertion');
+  if (!t) {
+    set.status = 401;
+    return 'unauthorized';
+  }
   try {
     await jwtVerify(t, jwks, {
       issuer: `https://${env.CF_ACCESS_TEAM_DOMAIN}`,
       audience: env.CF_ACCESS_AUD
     });
-    return next();
   } catch {
-    return c.text('forbidden', 403);
+    set.status = 403;
+    return 'forbidden';
   }
 };
 
-app.use('/admin/*', requireAccess);
+app.group('/admin', app => app
+  .use(cors({
+    origin: env.ADMIN_ORIGIN,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cf-Access-Jwt-Assertion', 'x-api-key'],
+    maxAge: 86400
+  }))
+  .onBeforeHandle(requireAccess)
+  .use(routes)
+);
 
-app.use('/api/*', rateLimit());
+app.get('/', () => ({ ok: true, message: 'Welcome to MrWinRock API' }));
 
-app.use('/api/*', async (c, next) => {
-  if (c.req.method !== 'GET') {
-    return c.json({ ok: false, error: 'Method not allowed' }, 405);
-  }
-  await next();
-});
-
-const rootCors = cors({
-  origin: (origin) => {
-    if (!origin) return '*';
-    return ALLOW.has(origin) ? origin : '';
-  },
-  credentials: false,
-  allowMethods: ['GET', 'OPTIONS'],
-  allowHeaders: ['Content-Type'],
-  maxAge: 86400
-});
-
-app.use('/health', rootCors);
-app.use('/fish', rootCors);
-
-app.get('/', c => c.json({ ok: true, message: 'Welcome to MrWinRock API' }));
-
-app.get('/health', async c => {
+app.get('/health', async ({ set }) => {
   try {
     const db = await connectMongo();
     await db.command({ ping: 1 });
     const uptime = typeof process !== 'undefined' && process.uptime ? process.uptime() : null;
-    return c.json({ ok: true, status: 'live', method: "GET", uptime, timestamp: new Date().toISOString() });
+    return { ok: true, status: 'live', method: "GET", uptime, timestamp: new Date().toISOString() };
   } catch (e) {
-    return c.json({ ok: false, error: (e as Error).message }, 500);
+    set.status = 500;
+    return { ok: false, error: (e as Error).message };
   }
 });
 
-app.get('/fish', c => c.json({ fish: '<><' }));
-
-app.route('/api', routes);
-app.route('/admin', routes);
+app.get('/fish', () => ({ fish: '<><' }));
 
 connectMongo()
   .catch((err) => console.error('Failed to connect to MongoDB:', err));
