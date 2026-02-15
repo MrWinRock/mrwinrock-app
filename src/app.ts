@@ -52,6 +52,8 @@ app.group('/api', app => app
 const jwks = createRemoteJWKSet(new URL(`https://${env.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`));
 
 const requireAccess = async ({ request, set }: Context) => {
+  if (request.method === 'OPTIONS') return;
+
   // Development: allow x-api-key as alternative auth
   if (env.NODE_ENV === 'development') {
     const apiKey = request.headers.get('x-api-key');
