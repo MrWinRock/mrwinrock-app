@@ -52,7 +52,6 @@ app.group('/api', app => app
 const jwks = createRemoteJWKSet(new URL(`https://${env.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`));
 
 const requireAccess = async ({ request, set }: Context) => {
-  if (request.method === 'OPTIONS') return;
 
   // Development: allow x-api-key as alternative auth
   if (env.NODE_ENV === 'development') {
@@ -79,14 +78,23 @@ const requireAccess = async ({ request, set }: Context) => {
   }
 };
 
+const ADMIN_CORS_HEADERS = {
+  'access-control-allow-origin': env.ADMIN_ORIGIN,
+  'access-control-allow-methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+  'access-control-allow-headers': 'Content-Type, Authorization, Cf-Access-Jwt-Assertion, x-api-key',
+  'access-control-allow-credentials': 'true',
+  'access-control-max-age': '86400',
+} as const;
+
 app.group('/admin', app => app
-  .use(cors({
-    origin: env.ADMIN_ORIGIN,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cf-Access-Jwt-Assertion', 'x-api-key'],
-    maxAge: 86400
-  }))
+  .onBeforeHandle(({ request, set }) => {
+    Object.assign(set.headers, ADMIN_CORS_HEADERS);
+
+    if (request.method === 'OPTIONS') {
+      set.status = 204;
+      return '';
+    }
+  })
   .onBeforeHandle(requireAccess)
   .use(routes)
 );
