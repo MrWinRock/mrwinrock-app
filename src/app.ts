@@ -6,43 +6,68 @@ import { env } from './config/env'
 import { rateLimit } from './middleware/rateLimit'
 import { requestLogger } from './middleware/logger'
 
-const app = new Elysia()
-  .use(requestLogger())
+/* ── allowed origins ─────────────────────────────────── */
 
-const PUBLIC_ORIGINS = [
-  // Development
+const PUBLIC_ORIGINS = new Set([
   'http://localhost:5173',
   'http://127.0.0.1:5173',
-  // Staging
   'http://localhost:4173',
   'http://127.0.0.1:4173',
-  // Production
   'https://mrwinrock.com',
   'https://admin.mrwinrock.com',
-];
+]);
 
-const ALLOW = new Set(PUBLIC_ORIGINS);
+/* ── CORS helpers ────────────────────────────────────── */
 
-const API_CORS_METHODS = 'GET, OPTIONS';
-const API_CORS_HEADERS = 'Content-Type';
-const API_CORS_MAX_AGE = '86400';
+function corsHeadersForApi(origin: string | null) {
+  const headers: Record<string, string> = {
+    'access-control-allow-methods': 'GET, OPTIONS',
+    'access-control-allow-headers': 'Content-Type',
+    'access-control-max-age': '86400',
+    'vary': 'Origin',
+  };
+  if (origin && PUBLIC_ORIGINS.has(origin)) {
+    headers['access-control-allow-origin'] = origin;
+  }
+  return headers;
+}
 
-// CORS for /api/* routes
+const ADMIN_CORS_HEADERS: Record<string, string> = {
+  'access-control-allow-origin': env.ADMIN_ORIGIN,
+  'access-control-allow-methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+  'access-control-allow-headers': 'Content-Type, Authorization, Cf-Access-Jwt-Assertion, x-api-key',
+  'access-control-allow-credentials': 'true',
+  'access-control-max-age': '86400',
+};
+
+/* ── app ─────────────────────────────────────────────── */
+
+const app = new Elysia()
+  .use(requestLogger())
+  // Handle CORS preflight at top level, BEFORE route matching
+  .onRequest(({ request, set }) => {
+    if (request.method !== 'OPTIONS') return;
+
+    const url = new URL(request.url);
+    const origin = request.headers.get('origin');
+
+    let headers: Record<string, string>;
+    if (url.pathname.startsWith('/admin')) {
+      headers = { ...ADMIN_CORS_HEADERS };
+    } else if (url.pathname.startsWith('/api')) {
+      headers = corsHeadersForApi(origin);
+    } else {
+      return;
+    }
+
+    return new Response(null, { status: 204, headers });
+  });
+
+/* ── /api routes ─────────────────────────────────────── */
+
 app.group('/api', app => app
   .onBeforeHandle(({ request, set }) => {
-    const origin = request.headers.get('origin');
-    if (origin && ALLOW.has(origin)) {
-      set.headers['access-control-allow-origin'] = origin;
-    }
-    set.headers['access-control-allow-methods'] = API_CORS_METHODS;
-    set.headers['access-control-allow-headers'] = API_CORS_HEADERS;
-    set.headers['access-control-max-age'] = API_CORS_MAX_AGE;
-    set.headers['vary'] = 'Origin';
-
-    if (request.method === 'OPTIONS') {
-      set.status = 204;
-      return '';
-    }
+    Object.assign(set.headers, corsHeadersForApi(request.headers.get('origin')));
   })
   .onBeforeHandle(rateLimit())
   .onBeforeHandle(({ request, set }) => {
@@ -54,12 +79,11 @@ app.group('/api', app => app
   .use(routes)
 );
 
-// CORS for /admin/* routes
+/* ── /admin routes ───────────────────────────────────── */
+
 const jwks = createRemoteJWKSet(new URL(`https://${env.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`));
 
 const requireAccess = async ({ request, set }: Context) => {
-
-  // Development: allow x-api-key as alternative auth
   if (env.NODE_ENV === 'development') {
     const apiKey = request.headers.get('x-api-key');
     if (apiKey && apiKey === env.API_KEY) {
@@ -67,7 +91,6 @@ const requireAccess = async ({ request, set }: Context) => {
     }
   }
 
-  // Production: require Cloudflare Access JWT
   const t = request.headers.get('Cf-Access-Jwt-Assertion');
   if (!t) {
     set.status = 401;
@@ -84,26 +107,15 @@ const requireAccess = async ({ request, set }: Context) => {
   }
 };
 
-const ADMIN_CORS_HEADERS = {
-  'access-control-allow-origin': env.ADMIN_ORIGIN,
-  'access-control-allow-methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-  'access-control-allow-headers': 'Content-Type, Authorization, Cf-Access-Jwt-Assertion, x-api-key',
-  'access-control-allow-credentials': 'true',
-  'access-control-max-age': '86400',
-} as const;
-
 app.group('/admin', app => app
-  .onBeforeHandle(({ request, set }) => {
+  .onBeforeHandle(({ set }) => {
     Object.assign(set.headers, ADMIN_CORS_HEADERS);
-
-    if (request.method === 'OPTIONS') {
-      set.status = 204;
-      return '';
-    }
   })
   .onBeforeHandle(requireAccess)
   .use(routes)
 );
+
+/* ── standalone routes ───────────────────────────────── */
 
 app.get('/', () => ({ ok: true, message: 'Welcome to MrWinRock API' }));
 
